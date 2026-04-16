@@ -24,7 +24,7 @@ git commit -m "$MESSAGE"
 # Try to push if a remote exists
 if git remote | grep -q 'origin'; then
     echo "🚀 Sending your progress to the Great Archive (GitHub)..."
-    git push origin master
+    git push origin main
 else
     echo "⚠️  No remote repository linked yet. Your progress is saved locally."
     echo "💡 To link to GitHub, run: git remote add origin <YOUR_GITHUB_URL>"
