@@ -18,6 +18,48 @@ const AVATARS = [
   { id: 'alchemist', icon: FlaskConical, label: 'The Alchemist', color: '#ffb800' }
 ];
 
+const getPasswordStrength = (password: string) => {
+  if (!password) return { score: 0, label: "Empty Vessel", color: "#666" };
+  let score = 0;
+  if (password.length > 8) score++;
+  if (password.length > 12) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+  
+  const levels = [
+    { label: "Weak Potion", color: "#ff003c" }, // Red
+    { label: "Fair Brew", color: "#ffb800" },   // Orange/Yellow
+    { label: "Stable Mix", color: "#00ff41" },  // Green
+    { label: "Strong Essence", color: "#bd00ff" }, // Purple
+    { label: "Legendary Potency", color: "#00f2ff" } // Cyan
+  ];
+  
+  const finalScore = Math.min(score, 4);
+  return { score: finalScore, ...levels[finalScore] };
+};
+
+const PotencyMeter = ({ password }: { password: string }) => {
+  const { score, label, color } = getPasswordStrength(password);
+  return (
+    <div className="mt-4 space-y-2">
+      <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest">
+        <span style={{ color }}>{label}</span>
+        <span className="text-gray-500">{score * 25}% Potency</span>
+      </div>
+      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex gap-0.5">
+        {[0, 1, 2, 3].map((step) => (
+          <div 
+            key={step} 
+            className="flex-1 transition-all duration-500" 
+            style={{ backgroundColor: step <= score - 1 ? color : '#ffffff05' }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 function App() {
   const [token, setToken] = useState(localStorage.getItem('vq_token') || '');
   const googleButtonRef = useRef(null);
@@ -297,7 +339,13 @@ function App() {
                 </div>
                 {brewedPassword && (
                   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 p-6 bg-white/5 rounded-2xl border border-neon-cyan/20">
-                    <div className="flex items-center justify-between mb-4"><span className="font-mono text-2xl font-bold text-white break-all">{brewedPassword}</span><button onClick={() => navigator.clipboard.writeText(brewedPassword)} className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all"><Copy size={24} /></button></div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex-1 mr-4">
+                        <span className="font-mono text-2xl font-bold text-white break-all">{brewedPassword}</span>
+                        <PotencyMeter password={brewedPassword} />
+                      </div>
+                      <button onClick={() => navigator.clipboard.writeText(brewedPassword)} className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all self-start"><Copy size={24} /></button>
+                    </div>
                     <div className="flex gap-4"><input type="text" placeholder="Service..." value={serviceName} onChange={e => setServiceName(e.target.value)} className="flex-1 bg-[#0a0a0c] border border-white/10 p-4 rounded-xl font-bold" /><button onClick={addToVault} className="px-8 bg-neon-cyan text-black font-black uppercase text-[10px] rounded-xl">Vault</button></div>
                   </motion.div>
                 )}
@@ -311,25 +359,30 @@ function App() {
               {/* Forge Entry Form */}
               <div className="glass-card p-8 border-neon-cyan/10">
                 <h3 className="text-xl font-black uppercase mb-6 flex items-center gap-3 text-neon-cyan"><Sparkles size={20} /> Forge New Secret</h3>
-                <form onSubmit={handleManualVault} className="flex gap-4">
-                  <input 
-                    type="text" 
-                    placeholder="Application (e.g. Netflix)" 
-                    value={manualServiceName} 
-                    onChange={e => setManualServiceName(e.target.value)}
-                    className="flex-1 bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all"
-                  />
-                  <input 
-                    type="password" 
-                    placeholder="Secret Password" 
-                    value={manualPassword} 
-                    onChange={e => setManualPassword(e.target.value)}
-                    className="flex-1 bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all"
-                  />
+                <form onSubmit={handleManualVault} className="space-y-6">
+                  <div className="flex gap-4">
+                    <input 
+                      type="text" 
+                      placeholder="Application (e.g. Netflix)" 
+                      value={manualServiceName} 
+                      onChange={e => setManualServiceName(e.target.value)}
+                      className="flex-1 bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all"
+                    />
+                    <div className="flex-1">
+                      <input 
+                        type="password" 
+                        placeholder="Secret Password" 
+                        value={manualPassword} 
+                        onChange={e => setManualPassword(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all"
+                      />
+                      <PotencyMeter password={manualPassword} />
+                    </div>
+                  </div>
                   <button 
                     type="submit" 
                     disabled={saving || !manualServiceName || !manualPassword}
-                    className="px-8 bg-neon-cyan text-black font-black uppercase text-[10px] rounded-xl hover:scale-105 transition-all disabled:opacity-50"
+                    className="w-full py-4 bg-neon-cyan text-black font-black uppercase text-[10px] rounded-xl hover:scale-[1.01] transition-all disabled:opacity-50 shadow-[0_0_20px_rgba(0,242,255,0.2)]"
                   >
                     {saving ? "Forging..." : "Store in Vault"}
                   </button>

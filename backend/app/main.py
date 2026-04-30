@@ -28,9 +28,6 @@ SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./vault_quest.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create tables
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title="Vault-Quest API")
 
 app.add_middleware(

@@ -11,9 +11,10 @@
 - [x] First Public Release on GitHub.
 - [x] **User Identity:** Refactored backend to SQLAlchemy and implemented Google Sign-In & Login/Signup.
 - [x] **Central Vault:** Added manual password entry and vault management (Add/Delete).
+- [x] **Potency Meter:** Added a visual password strength tester with real-time feedback.
+- [x] **Data Hardening:** Setup Alembic for database migrations.
 
 ## Active Tasks (The Stability Path)
-- [ ] **Data Hardening:** Ensure database stability for multiple users (Migrations, etc.).
 - [ ] **Error Handling:** Add "Shields" to prevent app crashes.
 - [ ] **Cloud Deployment:** Prepare for a live URL (Render/Railway).
 
