@@ -37,10 +37,19 @@ Vault-Quest uses **AES-256 Encryption** to ensure that your passwords never leav
 
 ## 🗺️ The Roadmap
 - [x] **Phase 1:** The Alchemist's Lab (Core Vault & Generator)
-- [ ] **Phase 2:** The Underdark (Dark Web Monitoring)
+- [ ] **Phase 2:** The Underdark (Breach Monitoring)
 - [ ] **Phase 3:** The Live Siege (Real-time Bot Alerts)
 - [ ] **Phase 4:** Guilds (Family Sharing & Co-op)
 
 ---
 
+## 💰 Monetization (Coming Soon)
+Vault-Quest will offer a **Pro Tier** for advanced digital warriors:
+- **Automatic Breach Alerts:** We hunt for your data in the Underdark so you don't have to.
+- **Cloud Sync:** Access your Secret Scrolls from any device, anywhere.
+- **Priority Support:** Direct access to the Alchemist's council.
+
+---
+
 *Built with ❤️ for Cyber Security and RPG lovers.*
+

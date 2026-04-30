@@ -1,317 +1,382 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Shield, 
-  FlaskConical, 
-  Scroll, 
-  Sword, 
-  Lock, 
-  Sparkles, 
-  Copy, 
-  RefreshCw,
-  Skull,
-  Plus,
-  Trash2,
-  Key
+  Shield, FlaskConical, Scroll, Sword, Lock, Sparkles, Copy, RefreshCw,
+  Skull, Trash2, Key, LogOut, User, ArrowRight, Eye, Activity, Users,
+  Beaker, ShieldAlert, Zap, Globe, Loader2, Wand2, Star, Ghost, Crown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "726201702658-a01oskaisbkkpnpltij5f573johk2836.apps.googleusercontent.com";
+
+const AVATARS = [
+  { id: 'knight', icon: Shield, label: 'The Knight', color: '#00f2ff' },
+  { id: 'mage', icon: Wand2, label: 'The Mage', color: '#bd00ff' },
+  { id: 'ranger', icon: Star, label: 'The Ranger', color: '#00ff41' },
+  { id: 'ghost', icon: Ghost, label: 'The Rogue', color: '#ff003c' },
+  { id: 'alchemist', icon: FlaskConical, label: 'The Alchemist', color: '#ffb800' }
+];
 
 function App() {
-  const [password, setPassword] = useState('');
+  const [token, setToken] = useState(localStorage.getItem('vq_token') || '');
+  const googleButtonRef = useRef(null);
+  const [googleLoaded, setGoogleLoaded] = useState(false);
+  
+  const [user, setUser] = useState(null);
+  const [isInitiated, setIsInitiated] = useState(true); // Default true until check
+  
+  const [isLogin, setIsLogin] = useState(true);
+  const [username, setUsername] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // Profile Setup State
+  const [setupName, setSetupName] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState(null);
+
+  // App State
+  const [brewedPassword, setBrewedPassword] = useState('');
   const [length, setLength] = useState(16);
   const [complexity, setComplexity] = useState(2);
   const [isBrewing, setIsBrewing] = useState(false);
-  const [showVault, setShowVault] = useState(false);
+  const [activeTab, setActiveTab] = useState('lab');
   const [vaultItems, setVaultItems] = useState([]);
   const [serviceName, setServiceName] = useState('');
+  const [manualServiceName, setManualServiceName] = useState('');
+  const [manualPassword, setManualPassword] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [adminStats, setAdminStats] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(false);
+
   useEffect(() => {
-    if (showVault) fetchVault();
-  }, [showVault]);
+    if (token) {
+      localStorage.setItem('vq_token', token);
+      fetchMe();
+    } else {
+      localStorage.removeItem('vq_token');
+      setUser(null);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token && activeTab === 'vault') fetchVault();
+    if (token && activeTab === 'admin') {
+      fetchAdminStats();
+      fetchAllUsers();
+    }
+  }, [activeTab, token]);
+
+  const fetchMe = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/user/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUser(res.data);
+      // If no display_name or avatar, they need initiation
+      setIsInitiated(!!(res.data.display_name && res.data.avatar_url));
+      if (res.data.display_name) setSetupName(res.data.display_name);
+    } catch { setToken(''); }
+  };
+
+  const handleProfileSetup = async () => {
+    if (!setupName || !selectedAvatar) return;
+    try {
+      await axios.post(`${API_BASE}/profile/update`, {
+        display_name: setupName,
+        avatar_url: selectedAvatar
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      fetchMe();
+    } catch { alert("Failed to forge identity."); }
+  };
+
+  const handleGoogleResponse = async (response) => {
+    try {
+      const res = await axios.post(`${API_BASE}/auth/google`, { credential: response.credential });
+      setToken(res.data.access_token);
+    } catch { setAuthError("Google failed."); }
+  };
+
+  useEffect(() => {
+    if (!token && window.google) {
+      window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleResponse });
+      window.google.accounts.id.renderButton(googleButtonRef.current, { theme: "filled_blue", size: "large", width: "100%" });
+      setGoogleLoaded(true);
+    }
+  }, [token, isLogin]);
 
   const fetchVault = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/vault/list`);
+      const res = await axios.get(`${API_BASE}/vault/list`, { headers: { Authorization: `Bearer ${token}` } });
       setVaultItems(res.data);
-    } catch (err) {
-      console.error("Failed to fetch vault", err);
-    }
+    } catch { setToken(''); }
   };
+
+  const fetchAdminStats = async () => {
+    setLoadingStats(true);
+    try {
+      const res = await axios.get(`${API_BASE}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } });
+      setAdminStats(res.data);
+    } finally { setLoadingStats(false); }
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
+      setAllUsers(res.data);
+    } catch {}
+  };
+
+  const banishUser = async (userId, userName) => {
+    if (!window.confirm(`Banish ${userName}?`)) return;
+    await axios.delete(`${API_BASE}/admin/user/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+    fetchAllUsers(); fetchAdminStats();
+  };
+
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append('username', username);
+      formData.append('password', passwordInput);
+      const res = await axios.post(`${API_BASE}/${isLogin ? 'token' : 'signup'}`, isLogin ? formData : {username, password: passwordInput});
+      setToken(res.data.access_token);
+    } catch (err) { setAuthError("Gate closed."); }
+  };
+
+  const logout = () => { setToken(''); setVaultItems([]); setActiveTab('lab'); };
 
   const generatePassword = async () => {
     setIsBrewing(true);
-    try {
-      const res = await axios.post(`${API_BASE}/generate`, { length, complexity });
-      // Small delay for RPG effect
-      await new Promise(r => setTimeout(r, 800));
-      setPassword(res.data.password);
-    } catch (err) {
-      console.error("Failed to brew potion", err);
-    } finally {
-      setIsBrewing(false);
-    }
+    const res = await axios.post(`${API_BASE}/generate`, { length, complexity });
+    setTimeout(() => { setBrewedPassword(res.data.password); setIsBrewing(false); }, 800);
   };
 
   const addToVault = async () => {
-    if (!serviceName || !password) return;
+    if (!serviceName || !brewedPassword) return;
+    setSaving(true);
+    await axios.post(`${API_BASE}/vault/add`, {
+      service_name: serviceName, password: brewedPassword,
+      armor_class: complexity === 3 ? "Legendary" : complexity === 2 ? "Master" : "Common"
+    }, { headers: { Authorization: `Bearer ${token}` } });
+    setServiceName(''); setBrewedPassword(''); setSaving(false); alert("Vaulted!");
+    fetchVault();
+  };
+
+  const handleManualVault = async (e) => {
+    e.preventDefault();
+    if (!manualServiceName || !manualPassword) return;
     setSaving(true);
     try {
       await axios.post(`${API_BASE}/vault/add`, {
-        service_name: serviceName,
-        password: password,
-        armor_class: complexity === 3 ? "Legendary" : complexity === 2 ? "Master" : "Common"
-      });
-      setServiceName('');
-      setPassword('');
-      alert("✨ Potion successfully vaulted!");
-    } catch (err) {
-      console.error("Failed to vault potion", err);
-    } finally {
-      setSaving(false);
-    }
+        service_name: manualServiceName, 
+        password: manualPassword,
+        armor_class: "Common"
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      setManualServiceName(''); setManualPassword('');
+      fetchVault();
+    } catch { alert("Failed to forge secret."); }
+    setSaving(false);
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
+  const deleteVaultEntry = async (id, name) => {
+    if (!window.confirm(`Banish ${name} from your vault forever?`)) return;
+    try {
+      await axios.delete(`${API_BASE}/vault/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      fetchVault();
+    } catch { alert("The secret resisted banishment."); }
   };
+
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0c] text-white flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-neon-cyan/10 blur-[150px] rounded-full" />
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md glass-card p-10 z-10 text-center">
+          <div className="p-4 inline-block rounded-2xl bg-neon-cyan/10 text-neon-cyan mb-6"><Shield size={48} /></div>
+          <h1 className="text-3xl font-black uppercase mb-2">Vault-Quest</h1>
+          <p className="text-gray-500 text-[10px] font-black tracking-widest uppercase mb-10">Forge Your Security</p>
+          <div className="space-y-6">
+            <div ref={googleButtonRef} className="w-full min-h-[50px]" />
+            <div className="flex items-center gap-4 text-[10px] font-black text-gray-700"><div className="flex-1 h-px bg-white/5" />OR<div className="flex-1 h-px bg-white/5" /></div>
+            <form onSubmit={handleAuth} className="space-y-4 text-left">
+              <input type="text" placeholder="Username" required className="w-full bg-white/5 border border-white/10 p-4 rounded-xl font-bold" value={username} onChange={e => setUsername(e.target.value)} />
+              <input type="password" placeholder="Password" required className="w-full bg-white/5 border border-white/10 p-4 rounded-xl font-bold" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} />
+              {authError && <p className="text-danger-red text-[10px] font-bold text-center uppercase">{authError}</p>}
+              <button type="submit" className="w-full py-4 rounded-xl bg-neon-cyan text-black font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(0,242,255,0.3)]">{isLogin ? "Login" : "Sign Up"}</button>
+            </form>
+            <button onClick={() => setIsLogin(!isLogin)} className="text-gray-600 hover:text-neon-cyan text-[10px] font-black uppercase">{isLogin ? "Join the Kingdom" : "Already have a quest?"}</button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // --- Initiation Screen ---
+  if (!isInitiated) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0c] text-white flex items-center justify-center p-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-2xl glass-card p-12 text-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12"><Crown size={120} /></div>
+          <h2 className="text-4xl font-black uppercase mb-2 tracking-tighter">Awaken, Hero</h2>
+          <p className="text-gray-500 uppercase tracking-widest text-xs mb-12">The Kingdom of Vault-Quest awaits its next legend.</p>
+          
+          <div className="space-y-12">
+            <div className="space-y-4">
+              <label className="text-xs font-black uppercase text-gray-500 tracking-[0.3em]">Choose Your Legend Name</label>
+              <input type="text" value={setupName} onChange={e => setSetupName(e.target.value)} placeholder="Display Name..." className="w-full bg-white/5 border-2 border-white/10 p-6 rounded-2xl text-2xl font-black text-center focus:border-neon-cyan outline-none transition-all" />
+            </div>
+
+            <div className="space-y-6">
+              <label className="text-xs font-black uppercase text-gray-500 tracking-[0.3em]">Choose Your Avatar</label>
+              <div className="grid grid-cols-5 gap-4">
+                {AVATARS.map(av => (
+                  <button key={av.id} onClick={() => setSelectedAvatar(av.id)} className={`p-6 rounded-2xl border-2 transition-all group flex flex-col items-center gap-3 ${selectedAvatar === av.id ? 'border-neon-cyan bg-neon-cyan/10' : 'border-white/5 bg-white/5 hover:border-white/20'}`}>
+                    <av.icon size={32} color={selectedAvatar === av.id ? av.color : '#666'} />
+                    <span className="text-[8px] font-black uppercase opacity-0 group-hover:opacity-100 transition-opacity">{av.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={handleProfileSetup} disabled={!setupName || !selectedAvatar} className="w-full py-6 rounded-2xl bg-neon-cyan text-black font-black text-xl uppercase tracking-widest disabled:opacity-20 hover:scale-[1.02] transition-all shadow-[0_0_30px_rgba(0,242,255,0.2)]">Begin Your Legend</button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // --- Main Dashboard ---
+  const UserAvatar = user && AVATARS.find(a => a.id === user.avatar_url)?.icon || User;
+  const userColor = user && AVATARS.find(a => a.id === user.avatar_url)?.color || '#00f2ff';
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-[#e2e2e6] font-sans">
-      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-cyan/5 blur-[120px] rounded-full pointer-events-none" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-safety-amber/5 blur-[120px] rounded-full pointer-events-none" />
-
-      {/* Sidebar */}
       <nav className="fixed left-6 top-6 bottom-6 w-72 glass-card p-8 flex flex-col gap-12 z-50">
-        <div className="flex items-center gap-4 text-2xl font-bold text-neon-cyan">
-          <Shield size={36} className="drop-shadow-[0_0_8px_rgba(0,242,255,0.5)]" />
-          <span className="tracking-tight">Vault-Quest</span>
-        </div>
-
+        <div className="flex items-center gap-4 text-2xl font-bold text-neon-cyan"><Shield size={36} /><span className="tracking-tight uppercase">Vault-Quest</span></div>
         <ul className="flex flex-col gap-2">
-          <li 
-            className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${!showVault ? 'bg-white/5 text-white' : 'text-gray-500 hover:text-white'}`}
-            onClick={() => setShowVault(false)}
-          >
-            <FlaskConical size={22} />
-            <span className="font-semibold text-lg">Alchemist's Lab</span>
-          </li>
-          <li 
-            className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${showVault ? 'bg-white/5 text-white' : 'text-gray-500 hover:text-white'}`}
-            onClick={() => setShowVault(true)}
-          >
-            <Scroll size={22} />
-            <span className="font-semibold text-lg">Secret Vault</span>
-          </li>
-          <li className="flex items-center gap-4 p-4 text-gray-700 cursor-not-allowed">
-            <Sword size={22} />
-            <span className="font-semibold text-lg">The Arena</span>
-          </li>
-          <li className="flex items-center gap-4 p-4 text-gray-700 cursor-not-allowed">
-            <Skull size={22} />
-            <span className="font-semibold text-lg">The Underdark</span>
-          </li>
+          <li className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${activeTab === 'lab' ? 'bg-white/5 text-white' : 'text-gray-500 hover:text-white'}`} onClick={() => setActiveTab('lab')}><FlaskConical size={22} /> Lab</li>
+          <li className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${activeTab === 'vault' ? 'bg-white/5 text-white' : 'text-gray-500 hover:text-white'}`} onClick={() => setActiveTab('vault')}><Scroll size={22} /> Vault</li>
+          {user?.role === 'admin' && <li className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${activeTab === 'admin' ? 'bg-neon-cyan/10 text-neon-cyan' : 'text-neon-cyan/40 hover:text-neon-cyan'}`} onClick={() => setActiveTab('admin')}><Eye size={22} /> Admin Mirror</li>}
         </ul>
-
-        <div className="mt-auto p-4 rounded-xl bg-neon-cyan/5 border border-neon-cyan/20">
-          <div className="flex items-center gap-3 text-sm font-bold text-neon-cyan uppercase tracking-wider mb-2">
-            <Lock size={14} /> Sentinel Active
+        <div className="mt-auto space-y-4">
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center gap-4">
+            <div className="p-3 rounded-lg" style={{ backgroundColor: `${userColor}20` }}><UserAvatar size={20} color={userColor} /></div>
+            <div>
+              <p className="text-xs font-black uppercase text-white leading-none mb-1">{user?.display_name || user?.username}</p>
+              <p className="text-[8px] font-black uppercase text-gray-500 tracking-widest">{user?.role === 'admin' ? 'Grand Overseer' : 'Adventurer'}</p>
+            </div>
           </div>
-          <p className="text-xs text-gray-400">AES-256 encryption active. Your kingdom is secure.</p>
+          <button onClick={logout} className="w-full flex items-center justify-center gap-2 p-4 text-gray-500 hover:text-danger-red transition-all font-black uppercase text-[10px]">Log Out</button>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="pl-[22rem] pr-12 pt-12 pb-12 min-h-screen">
-        <header className="flex justify-between items-center mb-12">
-          <div>
-            <h1 className="text-4xl font-extrabold mb-2 tracking-tight">
-              {!showVault ? "Alchemist's Lab" : "The Secret Vault"}
-            </h1>
-            <p className="text-gray-500">
-              {!showVault 
-                ? "Mix ingredients to brew an unbreakable password potion."
-                : "Your collection of protected artifacts and ancient scrolls."}
-            </p>
-          </div>
-          <div className="flex items-center gap-4 px-6 py-3 rounded-full bg-white/5 border border-white/10">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span className="text-sm font-bold uppercase tracking-widest text-gray-400">Guardian Online</span>
-          </div>
+      <main className="pl-[22rem] pr-12 pt-12 min-h-screen">
+        <header className="mb-12">
+          <h1 className="text-4xl font-black uppercase tracking-tight">{activeTab === 'lab' ? 'The Alchemist Lab' : activeTab === 'vault' ? 'The Secret Vault' : 'Overseer Mirror'}</h1>
+          <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">{activeTab === 'lab' ? 'Brewing unbreakable potion passwords' : 'Your collection of ancient secrets'}</p>
         </header>
 
-        {!showVault ? (
-          <div className="grid grid-cols-12 gap-8">
-            <div className="col-span-8 space-y-8">
-              <section className="glass-card p-10 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-neon-cyan/5 blur-3xl pointer-events-none" />
-                
-                <h2 className="text-2xl font-bold mb-8 flex items-center gap-3">
-                  <Sparkles className="text-neon-cyan" size={24} /> Potion Mixer
-                </h2>
-
+        <AnimatePresence mode="wait">
+          {activeTab === 'lab' && (
+            <motion.div key="lab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-12 gap-8">
+              <div className="col-span-8 glass-card p-10 relative overflow-hidden">
+                <h2 className="text-2xl font-black uppercase mb-8 flex items-center gap-3 text-neon-cyan"><Sparkles /> Potion Mixer</h2>
                 <div className="space-y-12">
                   <div className="space-y-4">
-                    <div className="flex justify-between text-sm font-bold uppercase tracking-wider text-gray-400">
-                      <span>Mercury (Potion Length)</span>
-                      <span className="text-neon-cyan">{length} Units</span>
-                    </div>
-                    <input 
-                      type="range" min="8" max="64" value={length} 
-                      onChange={(e) => setLength(parseInt(e.target.value))}
-                      className="w-full h-2 bg-white/5 rounded-lg appearance-none cursor-pointer accent-neon-cyan"
-                    />
+                    <div className="flex justify-between text-[10px] font-black uppercase text-gray-500"><span>Potion Length</span><span className="text-neon-cyan">{length} Units</span></div>
+                    <input type="range" min="8" max="64" value={length} onChange={e => setLength(parseInt(e.target.value))} className="w-full h-2 bg-white/5 rounded-lg appearance-none cursor-pointer accent-neon-cyan" />
                   </div>
-
-                  <div className="space-y-4">
-                    <div className="text-sm font-bold uppercase tracking-wider text-gray-400">Sulfur Complexity</div>
-                    <div className="grid grid-cols-3 gap-4">
-                      {[1, 2, 3].map((lvl) => (
-                        <button
-                          key={lvl}
-                          onClick={() => setComplexity(lvl)}
-                          className={`p-4 rounded-xl border-2 transition-all font-bold ${
-                            complexity === lvl 
-                              ? 'border-neon-cyan bg-neon-cyan/10 text-neon-cyan shadow-[0_0_15px_rgba(0,242,255,0.2)]' 
-                              : 'border-white/10 bg-white/5 text-gray-500 hover:border-white/20'
-                          }`}
-                        >
-                          {lvl === 1 ? 'Squire' : lvl === 2 ? 'Master' : 'God-Like'}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[1, 2, 3].map(lvl => (
+                      <button key={lvl} onClick={() => setComplexity(lvl)} className={`p-4 rounded-xl border-2 font-black uppercase text-[10px] ${complexity === lvl ? 'border-neon-cyan bg-neon-cyan/10 text-neon-cyan' : 'border-white/5 text-gray-500'}`}>{lvl === 1 ? 'Squire' : lvl === 2 ? 'Master' : 'God-Like'}</button>
+                    ))}
                   </div>
-
-                  <button 
-                    onClick={generatePassword}
-                    disabled={isBrewing}
-                    className="w-full py-5 rounded-xl bg-neon-cyan text-black font-black text-xl tracking-tighter hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(0,242,255,0.3)]"
-                  >
-                    {isBrewing ? <RefreshCw className="animate-spin" /> : <FlaskConical />}
-                    {isBrewing ? 'BREWING...' : 'BREW PASSWORD POTION'}
-                  </button>
+                  <button onClick={generatePassword} disabled={isBrewing} className="w-full py-5 rounded-xl bg-neon-cyan text-black font-black uppercase flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(0,242,255,0.3)]">{isBrewing ? <RefreshCw className="animate-spin" /> : <FlaskConical />}Brew Potion</button>
                 </div>
-              </section>
-
-              <AnimatePresence mode="wait">
-                {password && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="glass-card p-8 border-neon-cyan/30"
-                  >
-                    <div className="flex flex-col gap-6">
-                      <div className="flex items-center justify-between gap-6">
-                        <div className="flex-1 font-mono text-3xl font-bold tracking-tight text-white break-all bg-white/5 p-6 rounded-xl border border-white/10">
-                          {password}
-                        </div>
-                        <button 
-                          onClick={() => copyToClipboard(password)}
-                          className="p-6 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all border border-white/10"
-                          title="Copy Potion"
-                        >
-                          <Copy size={28} />
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 relative">
-                          <input 
-                            type="text"
-                            placeholder="Name of the Kingdom/Service (e.g. Google)..."
-                            value={serviceName}
-                            onChange={(e) => setServiceName(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-6 py-4 outline-none focus:border-neon-cyan/50 transition-all font-semibold"
-                          />
-                        </div>
-                        <button 
-                          onClick={addToVault}
-                          disabled={!serviceName || saving}
-                          className="px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 text-neon-cyan font-bold border border-neon-cyan/30 flex items-center gap-2 disabled:opacity-30 transition-all"
-                        >
-                          {saving ? <RefreshCw className="animate-spin" size={20} /> : <Scroll size={20} />}
-                          VAULT POTION
-                        </button>
-                      </div>
-                    </div>
+                {brewedPassword && (
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 p-6 bg-white/5 rounded-2xl border border-neon-cyan/20">
+                    <div className="flex items-center justify-between mb-4"><span className="font-mono text-2xl font-bold text-white break-all">{brewedPassword}</span><button onClick={() => navigator.clipboard.writeText(brewedPassword)} className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all"><Copy size={24} /></button></div>
+                    <div className="flex gap-4"><input type="text" placeholder="Service..." value={serviceName} onChange={e => setServiceName(e.target.value)} className="flex-1 bg-[#0a0a0c] border border-white/10 p-4 rounded-xl font-bold" /><button onClick={addToVault} className="px-8 bg-neon-cyan text-black font-black uppercase text-[10px] rounded-xl">Vault</button></div>
                   </motion.div>
                 )}
-              </AnimatePresence>
-            </div>
-
-            <div className="col-span-4">
-              <section className="glass-card p-8 sticky top-12">
-                <h3 className="text-xl font-bold mb-6">Alchemist Stats</h3>
-                <div className="space-y-6 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500 font-semibold uppercase tracking-widest">Master Level</span>
-                    <span className="text-white font-bold">Lvl 42</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500 font-semibold uppercase tracking-widest">Armor Class</span>
-                    <span className="text-safety-amber font-bold flex items-center gap-2">
-                      <Shield size={16} /> Legendary
-                    </span>
-                  </div>
-                  <div className="pt-6 border-t border-white/10">
-                    <div className="bg-neon-cyan/5 p-4 rounded-xl border border-neon-cyan/10">
-                      <p className="text-xs text-neon-cyan/80 leading-relaxed italic">
-                        "Secure your most precious artifacts. A potion vaulted is a kingdom protected."
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-6">
-            {vaultItems.length > 0 ? (
-              vaultItems.map((item, idx) => (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  key={idx} 
-                  className="glass-card p-6 border-white/5 hover:border-neon-cyan/20 transition-all group"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-3 rounded-lg bg-neon-cyan/10 text-neon-cyan">
-                      <Key size={20} />
-                    </div>
-                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded border ${
-                      item.armor_class === 'Legendary' ? 'text-safety-amber border-safety-amber/30 bg-safety-amber/5' : 'text-gray-500 border-white/10 bg-white/5'
-                    }`}>
-                      {item.armor_class}
-                    </span>
-                  </div>
-                  <h4 className="font-bold text-lg mb-1">{item.service_name}</h4>
-                  <p className="text-gray-500 font-mono text-sm mb-6 flex items-center gap-2">
-                    ••••••••••••
-                  </p>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => copyToClipboard(item.password)}
-                      className="flex-1 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 py-2 rounded-lg text-xs font-bold transition-all"
-                    >
-                      <Copy size={14} /> COPY
-                    </button>
-                    <button className="px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-all">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))
-            ) : (
-              <div className="col-span-3 flex flex-col items-center justify-center h-[40vh] text-center opacity-30">
-                <Scroll size={64} className="mb-4" />
-                <p className="font-bold text-xl uppercase tracking-widest">No Scrolls Found</p>
               </div>
-            )}
-          </div>
-        )}
+              <div className="col-span-4 glass-card p-8 border-safety-amber/10"><h3 className="text-xl font-black mb-6 uppercase text-safety-amber flex items-center gap-2"><Activity size={20} /> Stats</h3><div className="space-y-4 text-[10px] font-black uppercase"><div className="flex justify-between"><span>Level</span><span className="text-white">42</span></div><div className="flex justify-between"><span>Class</span><span className="text-safety-amber">Legendary</span></div></div></div>
+            </motion.div>
+          )}
+
+          {activeTab === 'vault' && (
+            <motion.div key="vault" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+              {/* Forge Entry Form */}
+              <div className="glass-card p-8 border-neon-cyan/10">
+                <h3 className="text-xl font-black uppercase mb-6 flex items-center gap-3 text-neon-cyan"><Sparkles size={20} /> Forge New Secret</h3>
+                <form onSubmit={handleManualVault} className="flex gap-4">
+                  <input 
+                    type="text" 
+                    placeholder="Application (e.g. Netflix)" 
+                    value={manualServiceName} 
+                    onChange={e => setManualServiceName(e.target.value)}
+                    className="flex-1 bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all"
+                  />
+                  <input 
+                    type="password" 
+                    placeholder="Secret Password" 
+                    value={manualPassword} 
+                    onChange={e => setManualPassword(e.target.value)}
+                    className="flex-1 bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all"
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={saving || !manualServiceName || !manualPassword}
+                    className="px-8 bg-neon-cyan text-black font-black uppercase text-[10px] rounded-xl hover:scale-105 transition-all disabled:opacity-50"
+                  >
+                    {saving ? "Forging..." : "Store in Vault"}
+                  </button>
+                </form>
+              </div>
+
+              {/* Vault Grid */}
+              <div className="grid grid-cols-3 gap-6">
+                {vaultItems.map((item, i) => (
+                  <div key={item.id || i} className="glass-card p-6 border-white/5 hover:border-neon-cyan/20 transition-all group relative">
+                    <div className="flex justify-between mb-4">
+                      <div className="p-3 bg-neon-cyan/10 text-neon-cyan rounded-lg">
+                        <Key size={20} />
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-[8px] font-black uppercase px-2 py-1 border border-white/10 rounded h-fit">
+                          {item.armor_class}
+                        </span>
+                        <button 
+                          onClick={() => deleteVaultEntry(item.id, item.service_name)}
+                          className="p-2 text-gray-500 hover:text-danger-red hover:bg-danger-red/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <h4 className="font-black uppercase mb-4">{item.service_name}</h4>
+                    <button onClick={() => navigator.clipboard.writeText(item.password)} className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5 flex items-center justify-center gap-2">
+                      <Zap size={14} /> Copy Secret
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'admin' && (
+            <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
+              <div className="grid grid-cols-3 gap-8">
+                {[{l: 'Heroes', v: adminStats?.total_users, i: Users}, {l: 'Potions', v: adminStats?.total_potions, i: Beaker}, {l: 'Status', v: adminStats?.kingdom_status, i: Shield}].map((s, i) => (
+                  <div key={i} className="glass-card p-8 text-center"><div className="p-4 inline-block bg-white/5 rounded-full mb-4"><s.i size={32} /></div><p className="text-[10px] font-black uppercase text-gray-500 mb-2">{s.l}</p><h3 className="text-3xl font-black">{s.v || '...'}</h3></div>
+                ))}
+              </div>
+              <div className="glass-card p-10"><h3 className="text-xl font-black uppercase mb-8 flex items-center gap-3 text-neon-cyan"><Users /> Hall of Heroes</h3><table className="w-full text-left"><thead className="text-[10px] font-black uppercase text-gray-500 border-b border-white/5"><tr><th className="pb-6">Hero</th><th className="pb-6">Role</th><th className="pb-6 text-right">Action</th></tr></thead><tbody className="font-bold text-sm">{allUsers.map(u => (<tr key={u.id} className="border-b border-white/[0.02] hover:bg-white/[0.01] transition-all"><td className="py-6 flex items-center gap-3"><div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center"><User size={16} /></div>{u.display_name || u.username}</td><td><span className={`px-3 py-1 rounded-full text-[8px] uppercase font-black ${u.role === 'admin' ? 'bg-neon-cyan/20 text-neon-cyan' : 'bg-white/5 text-gray-500'}`}>{u.role}</span></td><td className="text-right">{u.username !== user?.username && <button onClick={() => banishUser(u.id, u.username)} className="p-3 bg-danger-red/10 text-danger-red rounded-lg hover:bg-danger-red hover:text-white"><Skull size={18} /></button>}</td></tr>))}</tbody></table></div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
