@@ -106,6 +106,8 @@ function App() {
   const [allUsers, setAllUsers] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
   const [breachStatus, setBreachStatus] = useState({});
+  const [scanResult, setScanResult] = useState<{ total: number; compromised: number; safe: number } | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -522,15 +524,19 @@ function App() {
                 <h3 className="text-xl font-black uppercase mb-4 flex items-center gap-3 text-danger-red"><Radar size={20} /> Breach Control</h3>
                 <p className="text-[10px] font-black uppercase text-gray-500 mb-6">Auto-scan runs every 24h. Trigger a manual scan of all vault entries now.</p>
                 <button
+                  disabled={scanning}
                   onClick={async () => {
+                    setScanning(true);
                     try {
-                      await axios.post(`${API_BASE}/admin/breach-scan`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                      alert("Scan complete! Check the backend logs for results.");
-                    } catch { alert("Scan failed."); }
+                      const res = await axios.post(`${API_BASE}/admin/breach-scan`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                      setScanResult(res.data);
+                    } catch { alert("Scan failed. Check backend connection."); }
+                    finally { setScanning(false); }
                   }}
-                  className="px-6 py-3 bg-danger-red/10 text-danger-red border border-danger-red/20 rounded-xl font-black uppercase text-[10px] hover:bg-danger-red hover:text-white transition-all flex items-center gap-2"
+                  className="px-6 py-3 bg-danger-red/10 text-danger-red border border-danger-red/20 rounded-xl font-black uppercase text-[10px] hover:bg-danger-red hover:text-white transition-all flex items-center gap-2 disabled:opacity-40"
                 >
-                  <Radar size={14} /> Run Breach Scan Now
+                  {scanning ? <RefreshCw size={14} className="animate-spin" /> : <Radar size={14} />}
+                  {scanning ? 'Scouting the Underdark...' : 'Run Breach Scan Now'}
                 </button>
               </div>
               <div className="glass-card p-10"><h3 className="text-xl font-black uppercase mb-8 flex items-center gap-3 text-neon-cyan"><Users /> Hall of Heroes</h3><table className="w-full text-left"><thead className="text-[10px] font-black uppercase text-gray-500 border-b border-white/5"><tr><th className="pb-6">Hero</th><th className="pb-6">Role</th><th className="pb-6 text-right">Action</th></tr></thead><tbody className="font-bold text-sm">{allUsers.map(u => (<tr key={u.id} className="border-b border-white/[0.02] hover:bg-white/[0.01] transition-all"><td className="py-6 flex items-center gap-3"><div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center"><User size={16} /></div>{u.display_name || u.username}</td><td><span className={`px-3 py-1 rounded-full text-[8px] uppercase font-black ${u.role === 'admin' ? 'bg-neon-cyan/20 text-neon-cyan' : 'bg-white/5 text-gray-500'}`}>{u.role}</span></td><td className="text-right">{u.username !== user?.username && <button onClick={() => banishUser(u.id, u.username)} className="p-3 bg-danger-red/10 text-danger-red rounded-lg hover:bg-danger-red hover:text-white"><Skull size={18} /></button>}</td></tr>))}</tbody></table></div>
@@ -538,6 +544,63 @@ function App() {
           )}
         </AnimatePresence>
       </main>
+
+      <AnimatePresence>
+        {scanResult && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+            onClick={() => setScanResult(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.85, y: 30 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              className="glass-card p-12 max-w-md w-full text-center relative overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className={`absolute inset-0 opacity-5 ${scanResult.compromised > 0 ? 'bg-danger-red' : 'bg-neon-cyan'}`} />
+
+              <div className={`p-5 inline-flex rounded-2xl mb-6 ${scanResult.compromised > 0 ? 'bg-danger-red/10 text-danger-red' : 'bg-neon-cyan/10 text-neon-cyan'}`}>
+                {scanResult.compromised > 0 ? <Skull size={48} /> : <Shield size={48} />}
+              </div>
+
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-500 mb-2">Underdark Scout Report</p>
+              <h2 className={`text-3xl font-black uppercase tracking-tight mb-2 ${scanResult.compromised > 0 ? 'text-danger-red' : 'text-neon-cyan'}`}>
+                {scanResult.compromised > 0 ? 'Demons Detected' : 'Kingdom Secure'}
+              </h2>
+              <p className="text-gray-500 text-xs mb-10">
+                {scanResult.compromised > 0
+                  ? `${scanResult.compromised} of your secrets have been spotted in the dark web.`
+                  : 'No traces of your secrets were found in the darkness.'}
+              </p>
+
+              <div className="grid grid-cols-3 gap-4 mb-10">
+                {[
+                  { label: 'Scouted', value: scanResult.total, color: 'text-white' },
+                  { label: 'Compromised', value: scanResult.compromised, color: 'text-danger-red' },
+                  { label: 'Safe', value: scanResult.safe, color: 'text-neon-cyan' },
+                ].map(s => (
+                  <div key={s.label} className="p-4 bg-white/5 rounded-xl">
+                    <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                    <p className="text-[8px] font-black uppercase text-gray-600 mt-1">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setScanResult(null)}
+                className={`w-full py-4 rounded-xl font-black uppercase tracking-widest text-sm transition-all ${scanResult.compromised > 0 ? 'bg-danger-red/10 text-danger-red hover:bg-danger-red hover:text-white border border-danger-red/20' : 'bg-neon-cyan text-black hover:opacity-90'}`}
+              >
+                {scanResult.compromised > 0 ? 'Understood — Check My Vault' : 'Return to the Kingdom'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

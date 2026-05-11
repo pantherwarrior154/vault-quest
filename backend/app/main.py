@@ -296,7 +296,9 @@ async def trigger_breach_scan(db: Session = Depends(get_db), current_user: User 
     if current_user.role != "admin": raise HTTPException(status_code=403)
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(_scan_executor, run_breach_scan, db)
-    return {"status": "Scan complete"}
+    total = db.query(VaultEntry).count()
+    compromised = db.query(VaultEntry).filter(VaultEntry.breach_count > 0).count()
+    return {"total": total, "compromised": compromised, "safe": total - compromised}
 
 @app.get("/admin/stats")
 def get_admin_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
