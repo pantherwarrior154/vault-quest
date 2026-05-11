@@ -1,55 +1,83 @@
 # 🛡️ Vault-Quest: The RPG Password Manager
 
-**Vault-Quest** turns the "chore" of password management into an epic digital adventure. Protect your "Kingdom" (digital identity) by brewing powerful "Password Potions" and slaying "Breach Demons" from the Dark Web.
+**Vault-Quest** turns password management into an epic digital adventure. Protect your Kingdom (digital identity) by brewing powerful Password Potions, slaying Breach Demons from the Dark Web, and managing your Secret Scrolls — all from a single enchanted interface.
 
 ---
 
-## 🧙 Features (Phase 1: The Alchemist's Lab)
-- **Potion Mixer:** A gamified password generator. Mix "Sulfur" (Complexity) and "Mercury" (Length) to brew unbreakable keys.
-- **The Secret Scroll:** A secure, encrypted vault to store your digital assets.
-- **One-Click Launch:** Start your adventure instantly with the `vq` command or the Desktop icon.
-- **Save Crystals:** Integrated GitHub sync with the `vq-save` command.
+## ⚔️ Features
+
+### 🧙 The Alchemist's Lab (Password Generator)
+- Brew passwords with configurable length and complexity
+- Three tiers: Common (letters + digits), Rare (+ symbols), Legendary (full punctuation)
+- One-click copy to clipboard
+
+### 🔐 The Secret Vault
+- AES-256 encrypted storage — your keys never leave your machine unencrypted
+- Armor class tags: Common, Uncommon, Rare, Epic, Legendary
+- Show/hide password toggle per entry
+- Inline edit — change service name, password, or armor class without re-adding
+- Search/filter vault by service name in real time
+- One-click copy with visual confirmation
+
+### 🕵️ Breach Monitoring (Have I Been Pwned)
+- Automatic background scan runs every 24 hours
+- Per-entry manual check from the vault
+- Breach count displayed on each vault card
+- Admin dashboard: trigger a full scan, view total vs. compromised entries
+
+### 🔑 Authentication
+- Username + password signup/login
+- Google Sign-In (OAuth2)
+- JWT sessions (24-hour tokens)
+
+### 🛠️ Admin Panel
+- User roster with roles
+- Kingdom stats: total users, total entries
+- Manual breach scan trigger with results summary
+
+---
 
 ## 🚀 Getting Started
 
-### **Quick Start**
-If you have Vault-Quest installed, simply type:
+### Quick Start
 ```bash
 vq
 ```
-Or double-click the **Vault-Quest** icon on your Desktop.
 
-### **Manual Installation**
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/vault-quest.git
-   cd vault-quest
-   ```
-2. **Launch the app:**
-   ```bash
-   python3 scripts/launch.py
-   ```
+### Manual Launch
+```bash
+python3 scripts/launch.py
+```
 
-## 🔒 Security First
-Vault-Quest uses **AES-256 Encryption** to ensure that your passwords never leave your machine unencrypted. We believe in "Your Keys, Your Kingdom."
-
----
-
-## 🗺️ The Roadmap
-- [x] **Phase 1:** The Alchemist's Lab (Core Vault & Generator)
-- [ ] **Phase 2:** The Underdark (Breach Monitoring)
-- [ ] **Phase 3:** The Live Siege (Real-time Bot Alerts)
-- [ ] **Phase 4:** Guilds (Family Sharing & Co-op)
+### Requirements
+- Python 3.10+
+- Node.js 18+
+- A `.env` file in `backend/` with:
+  ```
+  SECRET_KEY=<random hex>
+  MASTER_KEY=<64-char hex>
+  GOOGLE_CLIENT_ID=<your google oauth client id>
+  DATABASE_URL=sqlite:///./vault_quest.db
+  ADMIN_USERNAMES=your_username
+  ADMIN_EMAILS=your@email.com
+  ```
 
 ---
 
-## 💰 Monetization (Coming Soon)
-Vault-Quest will offer a **Pro Tier** for advanced digital warriors:
-- **Automatic Breach Alerts:** We hunt for your data in the Underdark so you don't have to.
-- **Cloud Sync:** Access your Secret Scrolls from any device, anywhere.
-- **Priority Support:** Direct access to the Alchemist's council.
+## 🔒 Security Model
+- Passwords are AES-256-CBC encrypted at rest with a per-install master key
+- Breach checks use SHA-1 k-anonymity (only the first 5 characters of the hash are sent to HIBP — the full password never leaves your machine)
+- JWTs are signed with a secret key and expire after 24 hours
+
+---
+
+## 🗺️ Roadmap
+
+- [x] **Phase 1 — The Alchemist's Lab:** Password generator, encrypted vault, one-click launch
+- [x] **Phase 2 — The Underdark:** Breach monitoring (HIBP integration, auto-scan, per-entry checks, admin dashboard), Google Sign-In, full CRUD on vault entries, UX polish (toasts, search, show/hide, inline edit)
+- [ ] **Phase 3 — The Live Siege:** Real-time WebSocket alerts when the auto-scan detects a new breach — no need to open the app
+- [ ] **Phase 4 — Guilds:** Family/team sharing and co-op vault management
 
 ---
 
 *Built with ❤️ for Cyber Security and RPG lovers.*
-

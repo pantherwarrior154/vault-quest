@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List, Optional
+from contextlib import asynccontextmanager
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
 import os
 from dotenv import load_dotenv
 
@@ -13,12 +16,13 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone as dt_timezone
 from .encryption import encrypt_password, decrypt_password
-from .rules.breach_service import check_password_breach
+from .rules.breach_service import check_password_breach, run_breach_scan
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from .models import Base, User, VaultEntry
+from .words import WORDS
 
 # --- Configuration ---
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -36,7 +40,35 @@ SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./vault_quest.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-app = FastAPI(title="Vault-Quest API")
+_scan_executor = ThreadPoolExecutor(max_workers=1)
+
+async def _breach_scan_loop():
+    await asyncio.sleep(30)  # let the server finish starting up
+    while True:
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(_scan_executor, run_breach_scan, SessionLocal)
+        except Exception as e:
+            print(f"[Breach Scan] Error: {e}")
+        await asyncio.sleep(60 * 60 * 24)  # run again in 24 hours
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE vault ADD COLUMN notes TEXT"))
+            conn.commit()
+        except Exception:
+            pass
+    task = asyncio.create_task(_breach_scan_loop())
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+app = FastAPI(title="Vault-Quest API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -94,16 +126,24 @@ class PotionRequest(BaseModel):
     length: int
     complexity: int
 
+class PassphraseRequest(BaseModel):
+    word_count: int = 4
+    separator: str = "-"
+
 class VaultEntryCreate(BaseModel):
     service_name: str
     password: str
     armor_class: str = "Common"
+    notes: Optional[str] = None
 
 class VaultEntryOut(BaseModel):
     id: int
     service_name: str
     password: str
     armor_class: str
+    breach_count: int
+    last_checked: Optional[datetime]
+    notes: Optional[str]
 
 # --- Dependency ---
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -222,13 +262,22 @@ def generate_password(request: PotionRequest):
     charset = charsets.get(request.complexity, charsets[2])
     return {"password": "".join(secrets.choice(charset) for _ in range(request.length))}
 
+@app.post("/generate/passphrase")
+def generate_passphrase(request: PassphraseRequest):
+    word_count = max(3, min(6, request.word_count))
+    sep = request.separator if request.separator in ("-", ".", " ", "_") else "-"
+    words = [secrets.choice(WORDS) for _ in range(word_count)]
+    words.append(str(secrets.randbelow(90) + 10))
+    return {"passphrase": sep.join(words)}
+
 @app.post("/vault/add")
 def add_to_vault(entry: VaultEntryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     new_entry = VaultEntry(
         user_id=current_user.id,
         service_name=entry.service_name,
         encrypted_password=encrypt_password(entry.password),
-        armor_class=entry.armor_class
+        armor_class=entry.armor_class,
+        notes=entry.notes
     )
     db.add(new_entry)
     db.commit()
@@ -237,7 +286,19 @@ def add_to_vault(entry: VaultEntryCreate, db: Session = Depends(get_db), current
 @app.get("/vault/list", response_model=List[VaultEntryOut])
 def list_vault(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     entries = db.query(VaultEntry).filter(VaultEntry.user_id == current_user.id).all()
-    return [{"id": e.id, "service_name": e.service_name, "password": decrypt_password(e.encrypted_password), "armor_class": e.armor_class} for e in entries]
+    return [{"id": e.id, "service_name": e.service_name, "password": decrypt_password(e.encrypted_password), "armor_class": e.armor_class, "breach_count": e.breach_count or 0, "last_checked": e.last_checked, "notes": e.notes} for e in entries]
+
+@app.put("/vault/edit/{entry_id}")
+def edit_vault_entry(entry_id: int, entry: VaultEntryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_entry = db.query(VaultEntry).filter(VaultEntry.id == entry_id, VaultEntry.user_id == current_user.id).first()
+    if not db_entry:
+        raise HTTPException(status_code=404, detail="Secret not found in your vault")
+    db_entry.service_name = entry.service_name
+    db_entry.encrypted_password = encrypt_password(entry.password)
+    db_entry.armor_class = entry.armor_class
+    db_entry.notes = entry.notes
+    db.commit()
+    return {"status": "Secret updated!"}
 
 @app.delete("/vault/delete/{entry_id}")
 def delete_vault_entry(entry_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -260,6 +321,15 @@ def check_breach(entry_id: int, db: Session = Depends(get_db), current_user: Use
         entry.last_checked = datetime.now(dt_timezone.utc)
         db.commit()
     return {"breach_count": count}
+
+@app.post("/admin/breach-scan")
+async def trigger_breach_scan(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin": raise HTTPException(status_code=403)
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(_scan_executor, run_breach_scan, SessionLocal)
+    total = db.query(VaultEntry).count()
+    compromised = db.query(VaultEntry).filter(VaultEntry.breach_count > 0).count()
+    return {"total": total, "compromised": compromised, "safe": total - compromised}
 
 @app.get("/admin/stats")
 def get_admin_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
