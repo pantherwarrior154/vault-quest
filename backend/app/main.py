@@ -8,10 +8,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import secrets
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from .encryption import encrypt_password, decrypt_password
+from .rules.breach_service import check_password_breach
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from sqlalchemy import create_engine
@@ -19,10 +21,16 @@ from sqlalchemy.orm import sessionmaker, Session
 from .models import Base, User, VaultEntry
 
 # --- Configuration ---
-SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-quest-key")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is not set")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "726201702658-a01oskaisbkkpnpltij5f573johk2836.apps.googleusercontent.com")
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+if not GOOGLE_CLIENT_ID:
+    raise RuntimeError("GOOGLE_CLIENT_ID environment variable is not set")
+ADMIN_USERNAMES = {u.lower() for u in os.getenv("ADMIN_USERNAMES", "").split(",") if u}
+ADMIN_EMAILS = {e.lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e}
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./vault_quest.db")
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
@@ -59,9 +67,9 @@ def get_password_hash(password):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(dt_timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(dt_timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -127,7 +135,7 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         username=user_in.username,
         hashed_password=hashed_pw,
-        role='admin' if user_in.username.lower() in ['eden17', 'pantherwarrior154'] else 'user'
+        role='admin' if user_in.username.lower() in ADMIN_USERNAMES else 'user'
     )
     db.add(new_user)
     db.commit()
@@ -156,15 +164,14 @@ def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
                 username = f"{base_username}{counter}"
                 counter += 1
             
-            import secrets
             user = User(
                 username=username,
                 google_id=google_id,
                 google_email=email,
                 display_name=id_info.get('name'),
-                avatar_url=None, # Leave null to trigger initiation screen
+                avatar_url=None,
                 hashed_password=get_password_hash(secrets.token_urlsafe(32)),
-                role='admin' if username.lower() in ['eden17', 'pantherwarrior154'] or email.lower() in ['eden17@gmail.com', 'pantherwarrior154@gmail.com'] else 'user'
+                role='admin' if username.lower() in ADMIN_USERNAMES or email.lower() in ADMIN_EMAILS else 'user'
             )
             db.add(user)
             db.commit()
@@ -210,10 +217,10 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 @app.post("/generate")
 def generate_password(request: PotionRequest):
-    import random, string
+    import string
     charsets = {1: string.ascii_letters + string.digits, 2: string.ascii_letters + string.digits + "!@#$%^&*", 3: string.ascii_letters + string.digits + string.punctuation}
     charset = charsets.get(request.complexity, charsets[2])
-    return {"password": "".join(random.choice(charset) for _ in range(request.length))}
+    return {"password": "".join(secrets.choice(charset) for _ in range(request.length))}
 
 @app.post("/vault/add")
 def add_to_vault(entry: VaultEntryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -240,6 +247,19 @@ def delete_vault_entry(entry_id: int, db: Session = Depends(get_db), current_use
     db.delete(entry)
     db.commit()
     return {"status": "Secret banished from vault"}
+
+@app.get("/vault/check-breach/{entry_id}")
+def check_breach(entry_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    entry = db.query(VaultEntry).filter(VaultEntry.id == entry_id, VaultEntry.user_id == current_user.id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Secret not found in your vault")
+    password = decrypt_password(entry.encrypted_password)
+    count = check_password_breach(password)
+    if count >= 0:
+        entry.breach_count = count
+        entry.last_checked = datetime.now(dt_timezone.utc)
+        db.commit()
+    return {"breach_count": count}
 
 @app.get("/admin/stats")
 def get_admin_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

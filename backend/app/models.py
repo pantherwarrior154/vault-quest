@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -18,7 +18,7 @@ class User(Base):
     google_id = Column(String(255), unique=True, nullable=True)
     google_email = Column(String(120), unique=True, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     vault_entries = relationship("VaultEntry", back_populates="user", cascade="all, delete-orphan")
 
@@ -33,7 +33,9 @@ class VaultEntry(Base):
     service_name = Column(String(100), nullable=False)
     encrypted_password = Column(Text, nullable=False)
     armor_class = Column(String(50), default="Common")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    breach_count = Column(Integer, default=0)
+    last_checked = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="vault_entries")
 

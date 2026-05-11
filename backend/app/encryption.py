@@ -4,8 +4,10 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 import base64
 
-# Simple Master Key for Phase 1 (We'll make this user-set later)
-MASTER_KEY = b"thisisaverysecretkeyforvaultques" # 32 bytes for AES-256
+_key_hex = os.getenv("MASTER_KEY")
+if not _key_hex:
+    raise RuntimeError("MASTER_KEY environment variable is not set")
+MASTER_KEY = bytes.fromhex(_key_hex)
 
 def encrypt_password(password: str) -> str:
     # Generate a random IV

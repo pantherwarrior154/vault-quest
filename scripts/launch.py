@@ -30,7 +30,7 @@ def run_backend():
         subprocess.run([sys.executable, "-m", "venv", "venv"])
     
     print("📦 Checking backend components (FastAPI, Google-Auth, etc.)...")
-    subprocess.run(["venv/bin/pip", "install", "fastapi", "uvicorn", "cryptography", "pydantic", "python-jose[cryptography]", "passlib", "bcrypt", "python-multipart", "google-auth", "requests", "sqlalchemy"])
+    subprocess.run(["venv/bin/pip", "install", "fastapi", "uvicorn[standard]", "cryptography", "pydantic", "python-jose[cryptography]", "passlib", "bcrypt", "python-multipart", "google-auth", "requests", "sqlalchemy", "python-dotenv"])
     
     # Clean up old port 8000
     if is_port_in_use(8000):
@@ -38,7 +38,7 @@ def run_backend():
         kill_port(8000)
 
     # Start the backend server
-    return subprocess.Popen(["venv/bin/python3", "-m", "app.main"])
+    return subprocess.Popen(["venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"])
 
 def run_frontend():
     print("🎨 [Frontend] Summoning the Visuals...")

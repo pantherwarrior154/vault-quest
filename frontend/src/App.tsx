@@ -1,8 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: { client_id: string; callback: (response: { credential: string }) => void }) => void;
+          renderButton: (element: HTMLElement | null, config: object) => void;
+        };
+      };
+    };
+  }
+}
 import { 
   Shield, FlaskConical, Scroll, Sword, Lock, Sparkles, Copy, RefreshCw,
   Skull, Trash2, Key, LogOut, User, ArrowRight, Eye, Activity, Users,
-  Beaker, ShieldAlert, Zap, Globe, Loader2, Wand2, Star, Ghost, Crown
+  Beaker, ShieldAlert, Zap, Globe, Loader2, Wand2, Star, Ghost, Crown, Radar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -62,7 +75,7 @@ const PotencyMeter = ({ password }: { password: string }) => {
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('vq_token') || '');
-  const googleButtonRef = useRef(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
   const [googleLoaded, setGoogleLoaded] = useState(false);
   
   const [user, setUser] = useState(null);
@@ -92,6 +105,7 @@ function App() {
   const [adminStats, setAdminStats] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [breachStatus, setBreachStatus] = useState({});
 
   useEffect(() => {
     if (token) {
@@ -134,20 +148,33 @@ function App() {
     } catch { alert("Failed to forge identity."); }
   };
 
-  const handleGoogleResponse = async (response) => {
+  const handleGoogleResponse = useCallback(async (response: { credential: string }) => {
     try {
       const res = await axios.post(`${API_BASE}/auth/google`, { credential: response.credential });
       setToken(res.data.access_token);
-    } catch { setAuthError("Google failed."); }
-  };
+    } catch { setAuthError("Google Sign-In failed. Please try again."); }
+  }, []);
 
   useEffect(() => {
-    if (!token && window.google) {
+    if (token) return;
+
+    const initGoogle = () => {
+      if (!googleButtonRef.current || !window.google) return;
       window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleResponse });
       window.google.accounts.id.renderButton(googleButtonRef.current, { theme: "filled_blue", size: "large", width: "100%" });
       setGoogleLoaded(true);
+    };
+
+    if (window.google) {
+      initGoogle();
+    } else {
+      const script = document.querySelector<HTMLScriptElement>('script[src*="accounts.google.com"]');
+      if (script) {
+        script.addEventListener('load', initGoogle, { once: true });
+        return () => script.removeEventListener('load', initGoogle);
+      }
     }
-  }, [token, isLogin]);
+  }, [token, handleGoogleResponse]);
 
   const fetchVault = async () => {
     try {
@@ -171,10 +198,14 @@ function App() {
     } catch {}
   };
 
-  const banishUser = async (userId, userName) => {
+  const banishUser = async (userId: number, userName: string) => {
     if (!window.confirm(`Banish ${userName}?`)) return;
-    await axios.delete(`${API_BASE}/admin/user/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
-    fetchAllUsers(); fetchAdminStats();
+    try {
+      await axios.delete(`${API_BASE}/admin/user/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+      fetchAllUsers(); fetchAdminStats();
+    } catch {
+      alert("Failed to banish user.");
+    }
   };
 
   const handleAuth = async (e) => {
@@ -188,23 +219,44 @@ function App() {
     } catch (err) { setAuthError("Gate closed."); }
   };
 
-  const logout = () => { setToken(''); setVaultItems([]); setActiveTab('lab'); };
+  const logout = () => { setToken(''); setVaultItems([]); setBreachStatus({}); setActiveTab('lab'); };
 
   const generatePassword = async () => {
     setIsBrewing(true);
-    const res = await axios.post(`${API_BASE}/generate`, { length, complexity });
-    setTimeout(() => { setBrewedPassword(res.data.password); setIsBrewing(false); }, 800);
+    try {
+      const res = await axios.post(`${API_BASE}/generate`, { length, complexity });
+      setTimeout(() => { setBrewedPassword(res.data.password); setIsBrewing(false); }, 800);
+    } catch {
+      setIsBrewing(false);
+      alert("Failed to brew password. Check your connection.");
+    }
+  };
+
+  const scoutBreach = async (id) => {
+    setBreachStatus(prev => ({ ...prev, [id]: { loading: true } }));
+    try {
+      const res = await axios.get(`${API_BASE}/vault/check-breach/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setBreachStatus(prev => ({ ...prev, [id]: { loading: false, count: res.data.breach_count } }));
+    } catch {
+      setBreachStatus(prev => ({ ...prev, [id]: { loading: false, error: true } }));
+    }
   };
 
   const addToVault = async () => {
     if (!serviceName || !brewedPassword) return;
     setSaving(true);
-    await axios.post(`${API_BASE}/vault/add`, {
-      service_name: serviceName, password: brewedPassword,
-      armor_class: complexity === 3 ? "Legendary" : complexity === 2 ? "Master" : "Common"
-    }, { headers: { Authorization: `Bearer ${token}` } });
-    setServiceName(''); setBrewedPassword(''); setSaving(false); alert("Vaulted!");
-    fetchVault();
+    try {
+      await axios.post(`${API_BASE}/vault/add`, {
+        service_name: serviceName, password: brewedPassword,
+        armor_class: complexity === 3 ? "Legendary" : complexity === 2 ? "Master" : "Common"
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      setServiceName(''); setBrewedPassword(''); alert("Vaulted!");
+      fetchVault();
+    } catch {
+      alert("Failed to save to vault. Your password was not stored.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleManualVault = async (e) => {
@@ -402,6 +454,13 @@ function App() {
                           {item.armor_class}
                         </span>
                         <button 
+                          onClick={() => scoutBreach(item.id)}
+                          className={`p-2 rounded-lg transition-all ${breachStatus[item.id]?.count > 0 ? 'text-danger-red bg-danger-red/10' : 'text-gray-500 hover:text-neon-cyan hover:bg-neon-cyan/10'}`}
+                          title="Scout for Breaches"
+                        >
+                          {breachStatus[item.id]?.loading ? <RefreshCw size={14} className="animate-spin" /> : <Radar size={14} />}
+                        </button>
+                        <button 
                           onClick={() => deleteVaultEntry(item.id, item.service_name)}
                           className="p-2 text-gray-500 hover:text-danger-red hover:bg-danger-red/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                         >
@@ -409,7 +468,27 @@ function App() {
                         </button>
                       </div>
                     </div>
-                    <h4 className="font-black uppercase mb-4">{item.service_name}</h4>
+                    <h4 className="font-black uppercase mb-1">{item.service_name}</h4>
+                    
+                    {/* Breach Status Warning */}
+                    <div className="mb-4 min-h-[20px]">
+                      {breachStatus[item.id]?.count > 0 && (
+                        <div className="flex items-center gap-2 text-danger-red animate-pulse">
+                          <ShieldAlert size={12} />
+                          <span className="text-[8px] font-black uppercase">Exposed {breachStatus[item.id].count.toLocaleString()} times!</span>
+                        </div>
+                      )}
+                      {breachStatus[item.id]?.count === 0 && (
+                        <div className="flex items-center gap-2 text-neon-cyan">
+                          <Shield size={12} />
+                          <span className="text-[8px] font-black uppercase">Unseen in Breaches</span>
+                        </div>
+                      )}
+                      {breachStatus[item.id]?.error && (
+                        <span className="text-[8px] font-black uppercase text-gray-500">Scout failed...</span>
+                      )}
+                    </div>
+
                     <button onClick={() => navigator.clipboard.writeText(item.password)} className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5 flex items-center justify-center gap-2">
                       <Zap size={14} /> Copy Secret
                     </button>
