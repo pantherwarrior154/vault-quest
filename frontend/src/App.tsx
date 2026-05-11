@@ -180,6 +180,13 @@ function App() {
     try {
       const res = await axios.get(`${API_BASE}/vault/list`, { headers: { Authorization: `Bearer ${token}` } });
       setVaultItems(res.data);
+      const stored: Record<number, { loading: boolean; count: number }> = {};
+      for (const item of res.data) {
+        if (item.last_checked) {
+          stored[item.id] = { loading: false, count: item.breach_count };
+        }
+      }
+      setBreachStatus(stored);
     } catch { setToken(''); }
   };
 
@@ -488,6 +495,12 @@ function App() {
                         <span className="text-[8px] font-black uppercase text-gray-500">Scout failed...</span>
                       )}
                     </div>
+
+                    {item.last_checked && !breachStatus[item.id] && (
+                      <p className="text-[8px] font-black uppercase text-gray-600 mb-3">
+                        Last scouted {new Date(item.last_checked).toLocaleDateString()}
+                      </p>
+                    )}
 
                     <button onClick={() => navigator.clipboard.writeText(item.password)} className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5 flex items-center justify-center gap-2">
                       <Zap size={14} /> Copy Secret
