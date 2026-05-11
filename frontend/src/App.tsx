@@ -77,7 +77,6 @@ const PotencyMeter = ({ password }: { password: string }) => {
 function App() {
   const [token, setToken] = useState(localStorage.getItem('vq_token') || '');
   const googleButtonRef = useRef<HTMLDivElement>(null);
-  const lockGoogleButtonRef = useRef<HTMLDivElement>(null);
   const [googleLoaded, setGoogleLoaded] = useState(false);
 
   const [user, setUser] = useState(null);
@@ -285,20 +284,6 @@ function App() {
 
   const logout = () => { setToken(''); setVaultItems([]); setBreachStatus({}); setActiveTab('lab'); };
 
-  useEffect(() => {
-    if (!isLocked) return;
-    const init = () => {
-      if (!lockGoogleButtonRef.current || !window.google) return;
-      window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleResponse });
-      window.google.accounts.id.renderButton(lockGoogleButtonRef.current, { theme: "filled_blue", size: "large", width: "100%" });
-    };
-    if (window.google) init();
-    else {
-      const script = document.querySelector<HTMLScriptElement>('script[src*="accounts.google.com"]');
-      if (script) script.addEventListener('load', init, { once: true });
-    }
-  }, [isLocked, handleGoogleResponse]);
-
   const lockVault = () => { setIsLocked(true); setLockPassword(''); setLockError(''); };
 
   const unlockVault = async (e: React.FormEvent) => {
@@ -463,16 +448,13 @@ function App() {
           <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-8">
             {(user as any)?.display_name || (user as any)?.username}
           </p>
-          <div ref={lockGoogleButtonRef} className="w-full min-h-[44px] mb-4" />
-          <div className="flex items-center gap-4 text-[10px] font-black text-gray-700 mb-4">
-            <div className="flex-1 h-px bg-white/5" />OR<div className="flex-1 h-px bg-white/5" />
-          </div>
-          <form onSubmit={unlockVault} className="space-y-4">
+          <form onSubmit={unlockVault} className="space-y-4 mb-6">
             <input
               type="password"
               placeholder="Enter your password"
               value={lockPassword}
               onChange={e => setLockPassword(e.target.value)}
+              autoFocus
               className="w-full bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all"
             />
             {lockError && <p className="text-danger-red text-[10px] font-bold uppercase">{lockError}</p>}
@@ -480,9 +462,12 @@ function App() {
               Unlock Vault
             </button>
           </form>
-          <button onClick={logout} className="mt-6 text-gray-600 hover:text-danger-red text-[10px] font-black uppercase transition-all">
-            Sign out instead
-          </button>
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left space-y-2">
+            <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest">Using Google Sign-In?</p>
+            <button onClick={logout} className="w-full py-3 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 font-black uppercase text-[10px] transition-all flex items-center justify-center gap-2">
+              <LogOut size={13} /> Sign out &amp; sign back in with Google
+            </button>
+          </div>
         </motion.div>
       </div>
     );
