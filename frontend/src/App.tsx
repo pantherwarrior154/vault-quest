@@ -18,7 +18,7 @@ import {
   Skull, Trash2, Key, LogOut, User, Eye, Activity, Users,
   Beaker, ShieldAlert, Zap, Wand2, Star, Ghost, Crown, Radar,
   Pencil, Search, Check, ScrollText, ChevronDown, ChevronUp,
-  AlertTriangle, ArrowRight
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -52,6 +52,105 @@ const getPasswordStrength = (password: string) => {
   const finalScore = Math.min(score, 4);
   return { score: finalScore, ...levels[finalScore] };
 };
+
+const RotVines = () => (
+  <motion.div
+    className="absolute inset-0 pointer-events-none"
+    style={{ borderRadius: 'inherit' }}
+    animate={{ opacity: [0.7, 1, 0.7] }}
+    transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+  >
+    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+      {/* Dark rot gradient from edges */}
+      <defs>
+        <radialGradient id="rotGrad" cx="50%" cy="50%" r="70%">
+          <stop offset="25%" stopColor="transparent" />
+          <stop offset="70%" stopColor="rgba(8,40,0,0.25)" />
+          <stop offset="100%" stopColor="rgba(4,22,0,0.6)" />
+        </radialGradient>
+      </defs>
+      <rect width="100" height="100" fill="url(#rotGrad)" />
+
+      {/* Top-left vines */}
+      <motion.path d="M -1,-1 C 5,10 3,22 7,32 C 9,40 5,46 8,54"
+        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+        transition={{ duration: 1.8, ease: 'easeOut', delay: 0 }} />
+      <motion.path d="M -1,-1 C 10,5 22,3 32,7 C 40,9 46,5 54,8"
+        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.2 }} />
+      <motion.path d="M 7,18 C 12,14 16,10 14,18 C 12,22 7,21 7,18"
+        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
+        transition={{ duration: 0.8, delay: 1.6 }} />
+      <motion.path d="M 18,7 C 14,12 10,16 18,14 C 22,12 21,7 18,7"
+        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
+        transition={{ duration: 0.8, delay: 1.8 }} />
+      <motion.path d="M 8,32 C 13,28 10,36 7,34" stroke="#4a9010" strokeWidth="0.7" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.7 }}
+        transition={{ duration: 0.6, delay: 2 }} />
+      <motion.path d="M 32,8 C 28,13 36,10 34,7" stroke="#4a9010" strokeWidth="0.7" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.7 }}
+        transition={{ duration: 0.6, delay: 2.2 }} />
+
+      {/* Top-right vines */}
+      <motion.path d="M 101,-1 C 95,10 97,22 93,32 C 91,40 95,46 92,54"
+        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.3 }} />
+      <motion.path d="M 101,-1 C 90,5 78,3 68,7 C 60,9 54,5 46,8"
+        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.5 }} />
+      <motion.path d="M 93,18 C 88,14 84,10 86,18 C 88,22 93,21 93,18"
+        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
+        transition={{ duration: 0.8, delay: 1.8 }} />
+      <motion.path d="M 82,7 C 86,12 90,16 82,14 C 78,12 79,7 82,7"
+        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
+        transition={{ duration: 0.8, delay: 2.0 }} />
+
+      {/* Bottom-left vines */}
+      <motion.path d="M -1,101 C 5,90 3,78 7,68 C 9,60 5,54 8,46"
+        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.6 }} />
+      <motion.path d="M -1,101 C 10,95 22,97 32,93 C 40,91 46,95 54,92"
+        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.8 }} />
+      <motion.path d="M 7,82 C 12,86 16,90 14,82 C 12,78 7,79 7,82"
+        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
+        transition={{ duration: 0.8, delay: 2.2 }} />
+      <motion.path d="M 18,93 C 14,88 10,84 18,86 C 22,88 21,93 18,93"
+        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
+        transition={{ duration: 0.8, delay: 2.4 }} />
+
+      {/* Bottom-right vines */}
+      <motion.path d="M 101,101 C 95,90 97,78 93,68 C 91,60 95,54 92,46"
+        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.9 }} />
+      <motion.path d="M 101,101 C 90,95 78,97 68,93 C 60,91 54,95 46,92"
+        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
+        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+        transition={{ duration: 1.8, ease: 'easeOut', delay: 1.1 }} />
+      <motion.path d="M 93,82 C 88,86 84,90 86,82 C 88,78 93,79 93,82"
+        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
+        transition={{ duration: 0.8, delay: 2.6 }} />
+      <motion.path d="M 82,93 C 86,88 90,84 82,86 C 78,88 79,93 82,93"
+        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
+        transition={{ duration: 0.8, delay: 2.8 }} />
+    </svg>
+  </motion.div>
+);
 
 const PotencyMeter = ({ password }: { password: string }) => {
   const { score, label, color } = getPasswordStrength(password);
@@ -632,7 +731,15 @@ function App() {
               {/* Vault Grid */}
               <div className="grid grid-cols-3 gap-6">
                 {filteredVaultItems.map((item: any, i: number) => (
-                  <div key={item.id || i} className="glass-card p-6 border-white/5 hover:border-neon-cyan/20 transition-all group relative">
+                  <div
+                    key={item.id || i}
+                    className="glass-card p-6 transition-all group relative overflow-hidden"
+                    style={getDaysOld(item.created_at) >= 90
+                      ? { borderColor: 'rgba(60,120,5,0.5)' }
+                      : { borderColor: 'rgba(255,255,255,0.05)' }}
+                  >
+                    {/* Rotting vine effect */}
+                    {getDaysOld(item.created_at) >= 90 && <RotVines />}
                     {editingId === item.id ? (
                       /* Edit Form */
                       <div className="space-y-3">
@@ -705,14 +812,6 @@ function App() {
                         </div>
 
                         <h4 className="font-black uppercase mb-1">{item.service_name}</h4>
-
-                        {/* Expiry Warning */}
-                        {getDaysOld(item.created_at) >= 90 && (
-                          <div className="flex items-center gap-1 mb-2 text-orange-400">
-                            <AlertTriangle size={11} />
-                            <span className="text-[8px] font-black uppercase">Rotting Potion — {getDaysOld(item.created_at)}d old</span>
-                          </div>
-                        )}
 
                         {/* Breach Status */}
                         <div className="mb-3 min-h-[20px]">

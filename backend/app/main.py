@@ -144,6 +144,7 @@ class VaultEntryOut(BaseModel):
     breach_count: int
     last_checked: Optional[datetime]
     notes: Optional[str]
+    created_at: Optional[datetime]
 
 # --- Dependency ---
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
