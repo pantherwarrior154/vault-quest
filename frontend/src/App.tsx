@@ -17,7 +17,8 @@ import {
   Shield, FlaskConical, Scroll, Sparkles, Copy, RefreshCw,
   Skull, Trash2, Key, LogOut, User, Eye, Activity, Users,
   Beaker, ShieldAlert, Zap, Wand2, Star, Ghost, Crown, Radar,
-  Pencil, Search, Check, ScrollText, ChevronDown, ChevronUp
+  Pencil, Search, Check, ScrollText, ChevronDown, ChevronUp,
+  Lock, AlertTriangle, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -123,6 +124,12 @@ function App() {
   const [manualNotes, setManualNotes] = useState('');
   const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
 
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockPassword, setLockPassword] = useState('');
+  const [lockError, setLockError] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardStep, setOnboardStep] = useState(0);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
@@ -143,6 +150,11 @@ function App() {
   );
 
   const hasBreaches = vaultItems.some((item: any) => item.breach_count > 0);
+
+  const getDaysOld = (dateStr: string) => {
+    if (!dateStr) return 0;
+    return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+  };
 
   const generatePassphrase = async () => {
     setIsBrewingRune(true);
@@ -188,6 +200,10 @@ function App() {
       await axios.post(`${API_BASE}/profile/update`, {
         display_name: setupName, avatar_url: selectedAvatar
       }, { headers: { Authorization: `Bearer ${token}` } });
+      if (!localStorage.getItem('vq_onboarded')) {
+        setShowOnboarding(true);
+        setOnboardStep(0);
+      }
       fetchMe();
     } catch { showToast('Failed to forge identity.', 'error'); }
   };
@@ -267,6 +283,22 @@ function App() {
 
   const logout = () => { setToken(''); setVaultItems([]); setBreachStatus({}); setActiveTab('lab'); };
 
+  const lockVault = () => { setIsLocked(true); setLockPassword(''); setLockError(''); };
+
+  const unlockVault = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append('username', (user as any)?.username || '');
+      formData.append('password', lockPassword);
+      const res = await axios.post(`${API_BASE}/token`, formData);
+      setToken(res.data.access_token);
+      setIsLocked(false);
+      setLockPassword('');
+      setLockError('');
+    } catch { setLockError('Wrong password. Try again.'); }
+  };
+
   const generatePassword = async () => {
     setIsBrewing(true);
     try {
@@ -309,8 +341,10 @@ function App() {
     if (!manualServiceName || !manualPassword) return;
     setSaving(true);
     try {
+      const strengthScore = getPasswordStrength(manualPassword).score;
+      const autoArmorClass = strengthScore >= 4 ? 'Epic' : strengthScore >= 3 ? 'Rare' : strengthScore >= 2 ? 'Uncommon' : 'Common';
       await axios.post(`${API_BASE}/vault/add`, {
-        service_name: manualServiceName, password: manualPassword, armor_class: "Common", notes: manualNotes || null
+        service_name: manualServiceName, password: manualPassword, armor_class: autoArmorClass, notes: manualNotes || null
       }, { headers: { Authorization: `Bearer ${token}` } });
       setManualServiceName(''); setManualPassword(''); setManualNotes('');
       showToast('Secret forged and stored!');
@@ -403,6 +437,38 @@ function App() {
   const UserAvatar = user && AVATARS.find(a => a.id === (user as any).avatar_url)?.icon || User;
   const userColor = user && AVATARS.find(a => a.id === (user as any).avatar_url)?.color || '#00f2ff';
 
+  if (isLocked) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0c] text-white flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/60" />
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-sm glass-card p-10 z-10 text-center">
+          <div className="p-5 inline-flex bg-white/5 rounded-2xl mb-6 text-gray-400"><Lock size={40} /></div>
+          <h2 className="text-2xl font-black uppercase mb-1">Vault Locked</h2>
+          <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-8">
+            {(user as any)?.display_name || (user as any)?.username}
+          </p>
+          <form onSubmit={unlockVault} className="space-y-4">
+            <input
+              type="password"
+              placeholder="Enter your password"
+              value={lockPassword}
+              onChange={e => setLockPassword(e.target.value)}
+              autoFocus
+              className="w-full bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all"
+            />
+            {lockError && <p className="text-danger-red text-[10px] font-bold uppercase">{lockError}</p>}
+            <button type="submit" className="w-full py-4 rounded-xl bg-neon-cyan text-black font-black uppercase tracking-widest">
+              Unlock Vault
+            </button>
+          </form>
+          <button onClick={logout} className="mt-6 text-gray-600 hover:text-danger-red text-[10px] font-black uppercase transition-all">
+            Sign out instead
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-[#e2e2e6] font-sans">
       <nav className="fixed left-6 top-6 bottom-6 w-72 glass-card p-8 flex flex-col gap-12 z-50">
@@ -423,6 +489,7 @@ function App() {
               <p className="text-[8px] font-black uppercase text-gray-500 tracking-widest">{(user as any)?.role === 'admin' ? 'Grand Overseer' : 'Adventurer'}</p>
             </div>
           </div>
+          <button onClick={lockVault} className="w-full flex items-center justify-center gap-2 p-4 text-gray-500 hover:text-safety-amber transition-all font-black uppercase text-[10px]"><Lock size={14} /> Lock Vault</button>
           <button onClick={logout} className="w-full flex items-center justify-center gap-2 p-4 text-gray-500 hover:text-danger-red transition-all font-black uppercase text-[10px]"><LogOut size={14} /> Log Out</button>
         </div>
       </nav>
@@ -689,6 +756,14 @@ function App() {
 
                         <h4 className="font-black uppercase mb-1">{item.service_name}</h4>
 
+                        {/* Expiry Warning */}
+                        {getDaysOld(item.created_at) >= 90 && (
+                          <div className="flex items-center gap-1 mb-2 text-orange-400">
+                            <AlertTriangle size={11} />
+                            <span className="text-[8px] font-black uppercase">Rotting Potion — {getDaysOld(item.created_at)}d old</span>
+                          </div>
+                        )}
+
                         {/* Breach Status */}
                         <div className="mb-3 min-h-[20px]">
                           {breachStatus[item.id]?.count > 0 && (
@@ -850,6 +925,53 @@ function App() {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* Onboarding Quest Modal */}
+      <AnimatePresence>
+        {showOnboarding && (() => {
+          const steps = [
+            { icon: FlaskConical, color: '#00f2ff', title: 'The Alchemist\'s Lab', body: 'Brew powerful password potions using the Lab. Choose your potion length and complexity — or forge memorable Rune Words. Your first line of defence.' },
+            { icon: Scroll, color: '#bd00ff', title: 'The Secret Vault', body: 'Every secret you forge is encrypted with AES-256 and stored safely in your Vault. Add notes, copy with one click, and edit any time.' },
+            { icon: Radar, color: '#ff003c', title: 'Breach Scouting', body: 'Your vault automatically checks passwords against known data breaches every 24 hours. A red badge on the Vault tab means something needs your attention.' },
+          ];
+          const step = steps[onboardStep];
+          const StepIcon = step.icon;
+          const isLast = onboardStep === steps.length - 1;
+          const dismiss = () => { localStorage.setItem('vq_onboarded', 'true'); setShowOnboarding(false); };
+          return (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+              <motion.div
+                key={onboardStep}
+                initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
+                style={{ background: 'rgba(18,18,22,0.99)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', maxWidth: '420px', width: '100%' }}
+                className="p-10 text-center"
+              >
+                <div className="flex justify-center gap-2 mb-8">
+                  {steps.map((_, i) => (
+                    <div key={i} className={`h-1 rounded-full transition-all ${i === onboardStep ? 'w-8 bg-neon-cyan' : 'w-4 bg-white/10'}`} />
+                  ))}
+                </div>
+                <div className="p-5 inline-flex rounded-2xl mb-6" style={{ backgroundColor: `${step.color}15`, color: step.color }}>
+                  <StepIcon size={44} />
+                </div>
+                <h3 className="text-xl font-black uppercase mb-3" style={{ color: step.color }}>{step.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed mb-10">{step.body}</p>
+                <div className="flex gap-3">
+                  {onboardStep > 0 && (
+                    <button onClick={() => setOnboardStep(s => s - 1)} className="flex-1 py-3 rounded-xl bg-white/5 text-gray-400 font-black uppercase text-[10px] hover:bg-white/10 transition-all">Back</button>
+                  )}
+                  <button
+                    onClick={() => isLast ? dismiss() : setOnboardStep(s => s + 1)}
+                    className="flex-1 py-3 rounded-xl bg-neon-cyan text-black font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+                  >
+                    {isLast ? 'Begin Your Quest' : <><span>Next</span><ArrowRight size={12} /></>}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Toast */}

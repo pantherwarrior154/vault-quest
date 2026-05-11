@@ -286,7 +286,7 @@ def add_to_vault(entry: VaultEntryCreate, db: Session = Depends(get_db), current
 @app.get("/vault/list", response_model=List[VaultEntryOut])
 def list_vault(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     entries = db.query(VaultEntry).filter(VaultEntry.user_id == current_user.id).all()
-    return [{"id": e.id, "service_name": e.service_name, "password": decrypt_password(e.encrypted_password), "armor_class": e.armor_class, "breach_count": e.breach_count or 0, "last_checked": e.last_checked, "notes": e.notes} for e in entries]
+    return [{"id": e.id, "service_name": e.service_name, "password": decrypt_password(e.encrypted_password), "armor_class": e.armor_class, "breach_count": e.breach_count or 0, "last_checked": e.last_checked, "notes": e.notes, "created_at": e.created_at} for e in entries]
 
 @app.put("/vault/edit/{entry_id}")
 def edit_vault_entry(entry_id: int, entry: VaultEntryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
