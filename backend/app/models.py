@@ -35,6 +35,7 @@ class VaultEntry(Base):
     armor_class = Column(String(50), default="Common")
     breach_count = Column(Integer, default=0)
     last_checked = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="vault_entries")

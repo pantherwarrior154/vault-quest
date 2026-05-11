@@ -19,9 +19,10 @@ from .encryption import encrypt_password, decrypt_password
 from .rules.breach_service import check_password_breach, run_breach_scan
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from .models import Base, User, VaultEntry
+from .words import WORDS
 
 # --- Configuration ---
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -53,6 +54,12 @@ async def _breach_scan_loop():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE vault ADD COLUMN notes TEXT"))
+            conn.commit()
+        except Exception:
+            pass
     task = asyncio.create_task(_breach_scan_loop())
     yield
     task.cancel()
@@ -119,10 +126,15 @@ class PotionRequest(BaseModel):
     length: int
     complexity: int
 
+class PassphraseRequest(BaseModel):
+    word_count: int = 4
+    separator: str = "-"
+
 class VaultEntryCreate(BaseModel):
     service_name: str
     password: str
     armor_class: str = "Common"
+    notes: Optional[str] = None
 
 class VaultEntryOut(BaseModel):
     id: int
@@ -131,6 +143,7 @@ class VaultEntryOut(BaseModel):
     armor_class: str
     breach_count: int
     last_checked: Optional[datetime]
+    notes: Optional[str]
 
 # --- Dependency ---
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -249,13 +262,22 @@ def generate_password(request: PotionRequest):
     charset = charsets.get(request.complexity, charsets[2])
     return {"password": "".join(secrets.choice(charset) for _ in range(request.length))}
 
+@app.post("/generate/passphrase")
+def generate_passphrase(request: PassphraseRequest):
+    word_count = max(3, min(6, request.word_count))
+    sep = request.separator if request.separator in ("-", ".", " ", "_") else "-"
+    words = [secrets.choice(WORDS) for _ in range(word_count)]
+    words.append(str(secrets.randbelow(90) + 10))
+    return {"passphrase": sep.join(words)}
+
 @app.post("/vault/add")
 def add_to_vault(entry: VaultEntryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     new_entry = VaultEntry(
         user_id=current_user.id,
         service_name=entry.service_name,
         encrypted_password=encrypt_password(entry.password),
-        armor_class=entry.armor_class
+        armor_class=entry.armor_class,
+        notes=entry.notes
     )
     db.add(new_entry)
     db.commit()
@@ -264,7 +286,7 @@ def add_to_vault(entry: VaultEntryCreate, db: Session = Depends(get_db), current
 @app.get("/vault/list", response_model=List[VaultEntryOut])
 def list_vault(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     entries = db.query(VaultEntry).filter(VaultEntry.user_id == current_user.id).all()
-    return [{"id": e.id, "service_name": e.service_name, "password": decrypt_password(e.encrypted_password), "armor_class": e.armor_class, "breach_count": e.breach_count or 0, "last_checked": e.last_checked} for e in entries]
+    return [{"id": e.id, "service_name": e.service_name, "password": decrypt_password(e.encrypted_password), "armor_class": e.armor_class, "breach_count": e.breach_count or 0, "last_checked": e.last_checked, "notes": e.notes} for e in entries]
 
 @app.put("/vault/edit/{entry_id}")
 def edit_vault_entry(entry_id: int, entry: VaultEntryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -274,6 +296,7 @@ def edit_vault_entry(entry_id: int, entry: VaultEntryCreate, db: Session = Depen
     db_entry.service_name = entry.service_name
     db_entry.encrypted_password = encrypt_password(entry.password)
     db_entry.armor_class = entry.armor_class
+    db_entry.notes = entry.notes
     db.commit()
     return {"status": "Secret updated!"}
 

@@ -15,9 +15,9 @@ declare global {
 
 import {
   Shield, FlaskConical, Scroll, Sparkles, Copy, RefreshCw,
-  Skull, Trash2, Key, LogOut, User, Eye, EyeOff, Activity, Users,
+  Skull, Trash2, Key, LogOut, User, Eye, Activity, Users,
   Beaker, ShieldAlert, Zap, Wand2, Star, Ghost, Crown, Radar,
-  Pencil, Search, Check
+  Pencil, Search, Check, ScrollText, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -108,12 +108,20 @@ function App() {
   const [scanning, setScanning] = useState(false);
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set());
   const [vaultSearch, setVaultSearch] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editService, setEditService] = useState('');
   const [editPassword, setEditPassword] = useState('');
+  const [editNotes, setEditNotes] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+
+  const [labMode, setLabMode] = useState<'potion' | 'rune'>('potion');
+  const [runeCount, setRuneCount] = useState(4);
+  const [runeSeparator, setRuneSeparator] = useState('-');
+  const [runePassphrase, setRunePassphrase] = useState('');
+  const [isBrewingRune, setIsBrewingRune] = useState(false);
+  const [manualNotes, setManualNotes] = useState('');
+  const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!toast) return;
@@ -133,6 +141,19 @@ function App() {
   const filteredVaultItems = vaultItems.filter((item: any) =>
     item.service_name.toLowerCase().includes(vaultSearch.toLowerCase())
   );
+
+  const hasBreaches = vaultItems.some((item: any) => item.breach_count > 0);
+
+  const generatePassphrase = async () => {
+    setIsBrewingRune(true);
+    try {
+      const res = await axios.post(`${API_BASE}/generate/passphrase`, { word_count: runeCount, separator: runeSeparator });
+      setTimeout(() => { setRunePassphrase(res.data.passphrase); setIsBrewingRune(false); }, 600);
+    } catch {
+      setIsBrewingRune(false);
+      showToast('Failed to forge rune words.', 'error');
+    }
+  };
 
   useEffect(() => {
     if (token) {
@@ -289,9 +310,9 @@ function App() {
     setSaving(true);
     try {
       await axios.post(`${API_BASE}/vault/add`, {
-        service_name: manualServiceName, password: manualPassword, armor_class: "Common"
+        service_name: manualServiceName, password: manualPassword, armor_class: "Common", notes: manualNotes || null
       }, { headers: { Authorization: `Bearer ${token}` } });
-      setManualServiceName(''); setManualPassword('');
+      setManualServiceName(''); setManualPassword(''); setManualNotes('');
       showToast('Secret forged and stored!');
       fetchVault();
     } catch { showToast('Failed to forge secret.', 'error'); }
@@ -315,10 +336,11 @@ function App() {
       await axios.put(`${API_BASE}/vault/edit/${editingId}`, {
         service_name: editService,
         password: editPassword || (entry as any)?.password,
-        armor_class: (entry as any)?.armor_class || 'Common'
+        armor_class: (entry as any)?.armor_class || 'Common',
+        notes: editNotes || null
       }, { headers: { Authorization: `Bearer ${token}` } });
       showToast('Secret reforged!');
-      setEditingId(null); setEditPassword('');
+      setEditingId(null); setEditPassword(''); setEditNotes('');
       fetchVault();
     } catch { showToast('Failed to reforge secret.', 'error'); }
     finally { setEditSaving(false); }
@@ -387,7 +409,10 @@ function App() {
         <div className="flex items-center gap-4 text-2xl font-bold text-neon-cyan"><Shield size={36} /><span className="tracking-tight uppercase">Vault-Quest</span></div>
         <ul className="flex flex-col gap-2">
           <li className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${activeTab === 'lab' ? 'bg-white/5 text-white' : 'text-gray-500 hover:text-white'}`} onClick={() => setActiveTab('lab')}><FlaskConical size={22} /> Lab</li>
-          <li className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${activeTab === 'vault' ? 'bg-white/5 text-white' : 'text-gray-500 hover:text-white'}`} onClick={() => setActiveTab('vault')}><Scroll size={22} /> Vault</li>
+          <li className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${activeTab === 'vault' ? 'bg-white/5 text-white' : 'text-gray-500 hover:text-white'}`} onClick={() => setActiveTab('vault')}>
+            <Scroll size={22} /> Vault
+            {hasBreaches && <span className="ml-auto w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+          </li>
           {(user as any)?.role === 'admin' && <li className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${activeTab === 'admin' ? 'bg-neon-cyan/10 text-neon-cyan' : 'text-neon-cyan/40 hover:text-neon-cyan'}`} onClick={() => setActiveTab('admin')}><Eye size={22} /> Admin Mirror</li>}
         </ul>
         <div className="mt-auto space-y-4">
@@ -412,34 +437,101 @@ function App() {
           {activeTab === 'lab' && (
             <motion.div key="lab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-12 gap-8">
               <div className="col-span-8 glass-card p-10 relative overflow-hidden">
-                <h2 className="text-2xl font-black uppercase mb-8 flex items-center gap-3 text-neon-cyan"><Sparkles /> Potion Mixer</h2>
-                <div className="space-y-12">
-                  <div className="space-y-4">
-                    <div className="flex justify-between text-[10px] font-black uppercase text-gray-500"><span>Potion Length</span><span className="text-neon-cyan">{length} Units</span></div>
-                    <input type="range" min="8" max="64" value={length} onChange={e => setLength(parseInt(e.target.value))} className="w-full h-2 bg-white/5 rounded-lg appearance-none cursor-pointer accent-neon-cyan" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    {[1, 2, 3].map(lvl => (
-                      <button key={lvl} onClick={() => setComplexity(lvl)} className={`p-4 rounded-xl border-2 font-black uppercase text-[10px] ${complexity === lvl ? 'border-neon-cyan bg-neon-cyan/10 text-neon-cyan' : 'border-white/5 text-gray-500'}`}>{lvl === 1 ? 'Squire' : lvl === 2 ? 'Master' : 'God-Like'}</button>
-                    ))}
-                  </div>
-                  <button onClick={generatePassword} disabled={isBrewing} className="w-full py-5 rounded-xl bg-neon-cyan text-black font-black uppercase flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(0,242,255,0.3)]">{isBrewing ? <RefreshCw className="animate-spin" /> : <FlaskConical />}Brew Potion</button>
+                {/* Mode Toggle */}
+                <div className="flex gap-2 mb-8">
+                  <button
+                    onClick={() => setLabMode('potion')}
+                    className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 ${labMode === 'potion' ? 'bg-neon-cyan text-black' : 'bg-white/5 text-gray-500 hover:text-white'}`}
+                  >
+                    <FlaskConical size={14} /> Potion Mixer
+                  </button>
+                  <button
+                    onClick={() => setLabMode('rune')}
+                    className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 ${labMode === 'rune' ? 'bg-neon-cyan text-black' : 'bg-white/5 text-gray-500 hover:text-white'}`}
+                  >
+                    <Wand2 size={14} /> Rune Words
+                  </button>
                 </div>
-                {brewedPassword && (
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 p-6 bg-white/5 rounded-2xl border border-neon-cyan/20">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex-1 mr-4">
-                        <span className="font-mono text-2xl font-bold text-white break-all">{brewedPassword}</span>
-                        <PotencyMeter password={brewedPassword} />
+
+                <AnimatePresence mode="wait">
+                  {labMode === 'potion' ? (
+                    <motion.div key="potion" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <h2 className="text-2xl font-black uppercase mb-8 flex items-center gap-3 text-neon-cyan"><Sparkles /> Potion Mixer</h2>
+                      <div className="space-y-12">
+                        <div className="space-y-4">
+                          <div className="flex justify-between text-[10px] font-black uppercase text-gray-500"><span>Potion Length</span><span className="text-neon-cyan">{length} Units</span></div>
+                          <input type="range" min="8" max="64" value={length} onChange={e => setLength(parseInt(e.target.value))} className="w-full h-2 bg-white/5 rounded-lg appearance-none cursor-pointer accent-neon-cyan" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          {[1, 2, 3].map(lvl => (
+                            <button key={lvl} onClick={() => setComplexity(lvl)} className={`p-4 rounded-xl border-2 font-black uppercase text-[10px] ${complexity === lvl ? 'border-neon-cyan bg-neon-cyan/10 text-neon-cyan' : 'border-white/5 text-gray-500'}`}>{lvl === 1 ? 'Squire' : lvl === 2 ? 'Master' : 'God-Like'}</button>
+                          ))}
+                        </div>
+                        <button onClick={generatePassword} disabled={isBrewing} className="w-full py-5 rounded-xl bg-neon-cyan text-black font-black uppercase flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(0,242,255,0.3)]">{isBrewing ? <RefreshCw className="animate-spin" /> : <FlaskConical />}Brew Potion</button>
                       </div>
-                      <button onClick={() => copyToClipboard(brewedPassword, 'Potion copied!')} className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all self-start"><Copy size={24} /></button>
-                    </div>
-                    <div className="flex gap-4">
-                      <input type="text" placeholder="Service..." value={serviceName} onChange={e => setServiceName(e.target.value)} className="flex-1 bg-[#0a0a0c] border border-white/10 p-4 rounded-xl font-bold" />
-                      <button onClick={addToVault} disabled={saving} className="px-8 bg-neon-cyan text-black font-black uppercase text-[10px] rounded-xl disabled:opacity-50">Vault</button>
-                    </div>
-                  </motion.div>
-                )}
+                      {brewedPassword && (
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 p-6 bg-white/5 rounded-2xl border border-neon-cyan/20">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex-1 mr-4">
+                              <span className="font-mono text-2xl font-bold text-white break-all">{brewedPassword}</span>
+                              <PotencyMeter password={brewedPassword} />
+                            </div>
+                            <button onClick={() => copyToClipboard(brewedPassword, 'Potion copied!')} className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all self-start"><Copy size={24} /></button>
+                          </div>
+                          <div className="flex gap-4">
+                            <input type="text" placeholder="Service..." value={serviceName} onChange={e => setServiceName(e.target.value)} className="flex-1 bg-[#0a0a0c] border border-white/10 p-4 rounded-xl font-bold" />
+                            <button onClick={addToVault} disabled={saving} className="px-8 bg-neon-cyan text-black font-black uppercase text-[10px] rounded-xl disabled:opacity-50">Vault</button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  ) : (
+                    <motion.div key="rune" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <h2 className="text-2xl font-black uppercase mb-8 flex items-center gap-3 text-neon-cyan"><Wand2 /> Rune Words</h2>
+                      <div className="space-y-10">
+                        <div className="space-y-4">
+                          <div className="flex justify-between text-[10px] font-black uppercase text-gray-500"><span>Rune Count</span><span className="text-neon-cyan">{runeCount} Words</span></div>
+                          <input type="range" min="3" max="6" value={runeCount} onChange={e => setRuneCount(parseInt(e.target.value))} className="w-full h-2 bg-white/5 rounded-lg appearance-none cursor-pointer accent-neon-cyan" />
+                        </div>
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-black uppercase text-gray-500">Separator</p>
+                          <div className="grid grid-cols-3 gap-4">
+                            {(['-', '.', '_'] as const).map(sep => (
+                              <button key={sep} onClick={() => setRuneSeparator(sep)} className={`p-4 rounded-xl border-2 font-black text-lg ${runeSeparator === sep ? 'border-neon-cyan bg-neon-cyan/10 text-neon-cyan' : 'border-white/5 text-gray-500'}`}>{sep === ' ' ? '␣' : sep}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <button onClick={generatePassphrase} disabled={isBrewingRune} className="w-full py-5 rounded-xl bg-neon-cyan text-black font-black uppercase flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(0,242,255,0.3)]">{isBrewingRune ? <RefreshCw className="animate-spin" /> : <Wand2 />}Forge Rune Words</button>
+                      </div>
+                      {runePassphrase && (
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 p-6 bg-white/5 rounded-2xl border border-neon-cyan/20">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="font-mono text-xl font-bold text-white break-all flex-1 mr-4">{runePassphrase}</span>
+                            <button onClick={() => copyToClipboard(runePassphrase, 'Rune words copied!')} className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all self-start"><Copy size={24} /></button>
+                          </div>
+                          <div className="flex gap-4">
+                            <input type="text" placeholder="Service..." value={serviceName} onChange={e => setServiceName(e.target.value)} className="flex-1 bg-[#0a0a0c] border border-white/10 p-4 rounded-xl font-bold" />
+                            <button
+                              onClick={async () => {
+                                if (!serviceName || !runePassphrase) return;
+                                setSaving(true);
+                                try {
+                                  await axios.post(`${API_BASE}/vault/add`, { service_name: serviceName, password: runePassphrase, armor_class: "Legendary" }, { headers: { Authorization: `Bearer ${token}` } });
+                                  setServiceName(''); setRunePassphrase('');
+                                  showToast('Rune words vaulted!');
+                                  fetchVault();
+                                } catch { showToast('Failed to vault.', 'error'); }
+                                finally { setSaving(false); }
+                              }}
+                              disabled={saving || !serviceName}
+                              className="px-8 bg-neon-cyan text-black font-black uppercase text-[10px] rounded-xl disabled:opacity-50"
+                            >Vault</button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <div className="col-span-4 glass-card p-8 border-safety-amber/10"><h3 className="text-xl font-black mb-6 uppercase text-safety-amber flex items-center gap-2"><Activity size={20} /> Stats</h3><div className="space-y-4 text-[10px] font-black uppercase"><div className="flex justify-between"><span>Level</span><span className="text-white">42</span></div><div className="flex justify-between"><span>Class</span><span className="text-safety-amber">Legendary</span></div></div></div>
             </motion.div>
@@ -470,6 +562,13 @@ function App() {
                       <PotencyMeter password={manualPassword} />
                     </div>
                   </div>
+                  <textarea
+                    placeholder="Arcane Inscriptions — notes, 2FA codes, security questions... (optional)"
+                    value={manualNotes}
+                    onChange={e => setManualNotes(e.target.value)}
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all resize-none text-sm"
+                  />
                   <button
                     type="submit"
                     disabled={saving || !manualServiceName || !manualPassword}
@@ -535,6 +634,13 @@ function App() {
                           placeholder="New password (leave blank to keep)"
                           className="w-full bg-white/5 border border-white/10 p-3 rounded-lg font-bold text-sm focus:border-neon-cyan outline-none transition-all"
                         />
+                        <textarea
+                          value={editNotes}
+                          onChange={e => setEditNotes(e.target.value)}
+                          placeholder="Notes (optional)"
+                          rows={2}
+                          className="w-full bg-white/5 border border-white/10 p-3 rounded-lg font-bold text-sm focus:border-neon-cyan outline-none transition-all resize-none"
+                        />
                         <div className="flex gap-2 pt-1">
                           <button
                             onClick={editVaultEntry}
@@ -544,7 +650,7 @@ function App() {
                             {editSaving ? 'Saving...' : 'Save'}
                           </button>
                           <button
-                            onClick={() => { setEditingId(null); setEditPassword(''); }}
+                            onClick={() => { setEditingId(null); setEditPassword(''); setEditNotes(''); }}
                             className="flex-1 py-2 bg-white/5 text-gray-400 font-black uppercase text-[9px] rounded-lg hover:bg-white/10"
                           >
                             Cancel
@@ -566,7 +672,7 @@ function App() {
                               {breachStatus[item.id]?.loading ? <RefreshCw size={14} className="animate-spin" /> : <Radar size={14} />}
                             </button>
                             <button
-                              onClick={() => { setEditingId(item.id); setEditService(item.service_name); setEditPassword(''); }}
+                              onClick={() => { setEditingId(item.id); setEditService(item.service_name); setEditPassword(''); setEditNotes(item.notes || ''); }}
                               className="p-2 text-gray-500 hover:text-neon-cyan hover:bg-neon-cyan/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                               title="Edit"
                             >
@@ -602,21 +708,9 @@ function App() {
                           )}
                         </div>
 
-                        {/* Password reveal */}
-                        <div className="mb-3 p-3 bg-white/5 rounded-lg flex items-center justify-between gap-2">
-                          <span className="font-mono text-xs text-gray-400 truncate">
-                            {visiblePasswords.has(item.id) ? item.password : '••••••••••••'}
-                          </span>
-                          <button
-                            onClick={() => setVisiblePasswords(prev => {
-                              const next = new Set(prev);
-                              next.has(item.id) ? next.delete(item.id) : next.add(item.id);
-                              return next;
-                            })}
-                            className="text-gray-600 hover:text-gray-300 transition-all shrink-0"
-                          >
-                            {visiblePasswords.has(item.id) ? <EyeOff size={14} /> : <Eye size={14} />}
-                          </button>
+                        {/* Password (always hidden) */}
+                        <div className="mb-3 p-3 bg-white/5 rounded-lg">
+                          <span className="font-mono text-xs text-gray-400">••••••••••••</span>
                         </div>
 
                         <button
@@ -625,6 +719,26 @@ function App() {
                         >
                           <Zap size={14} /> Copy Secret
                         </button>
+
+                        {/* Arcane Inscriptions */}
+                        {item.notes && (
+                          <div className="mt-3 border-t border-white/5 pt-3">
+                            <button
+                              onClick={() => setExpandedNotes(prev => {
+                                const next = new Set(prev);
+                                next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                                return next;
+                              })}
+                              className="w-full flex items-center gap-2 text-[9px] font-black uppercase text-gray-600 hover:text-gray-300 transition-all"
+                            >
+                              <ScrollText size={12} /> Arcane Inscription
+                              {expandedNotes.has(item.id) ? <ChevronUp size={10} className="ml-auto" /> : <ChevronDown size={10} className="ml-auto" />}
+                            </button>
+                            {expandedNotes.has(item.id) && (
+                              <p className="mt-2 text-[11px] text-gray-400 whitespace-pre-wrap break-words">{item.notes}</p>
+                            )}
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
