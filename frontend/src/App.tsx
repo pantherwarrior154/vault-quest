@@ -53,101 +53,106 @@ const getPasswordStrength = (password: string) => {
   return { score: finalScore, ...levels[finalScore] };
 };
 
+const Leaf = ({ d, delay, light = false }: { d: string; delay: number; light?: boolean }) => (
+  <motion.path d={d} fill={light ? '#5aaa18' : '#2d6a04'}
+    stroke="#1a4200" strokeWidth="0.3"
+    initial={{ opacity: 0 }} animate={{ opacity: [0, 0.95, 0.85] }}
+    transition={{ delay, duration: 0.6, times: [0, 0.6, 1] }} />
+);
+
+const Stem = ({ d, delay, width = 1.6 }: { d: string; delay: number; width?: number }) => (
+  <motion.path d={d} stroke="#2d6a04" strokeWidth={width} fill="none" strokeLinecap="round"
+    initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+    transition={{ duration: 2.2, ease: 'easeOut', delay }} />
+);
+
+const Tendril = ({ d, delay }: { d: string; delay: number }) => (
+  <motion.path d={d} stroke="#5aaa18" strokeWidth="0.6" fill="none" strokeLinecap="round"
+    initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.75 }}
+    transition={{ duration: 0.9, ease: 'easeOut', delay }} />
+);
+
 const RotVines = () => (
-  <motion.div
-    className="absolute inset-0 pointer-events-none"
+  <motion.div className="absolute inset-0 pointer-events-none overflow-hidden"
     style={{ borderRadius: 'inherit' }}
-    animate={{ opacity: [0.7, 1, 0.7] }}
-    transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-  >
+    animate={{ opacity: [0.8, 1, 0.8] }}
+    transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-      {/* Dark rot gradient from edges */}
       <defs>
-        <radialGradient id="rotGrad" cx="50%" cy="50%" r="70%">
-          <stop offset="25%" stopColor="transparent" />
-          <stop offset="70%" stopColor="rgba(8,40,0,0.25)" />
-          <stop offset="100%" stopColor="rgba(4,22,0,0.6)" />
+        <radialGradient id="rg" cx="50%" cy="50%" r="68%">
+          <stop offset="22%" stopColor="transparent" />
+          <stop offset="72%" stopColor="rgba(5,28,0,0.22)" />
+          <stop offset="100%" stopColor="rgba(2,14,0,0.58)" />
         </radialGradient>
       </defs>
-      <rect width="100" height="100" fill="url(#rotGrad)" />
+      <rect width="100" height="100" fill="url(#rg)" />
 
-      {/* Top-left vines */}
-      <motion.path d="M -1,-1 C 5,10 3,22 7,32 C 9,40 5,46 8,54"
-        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-        transition={{ duration: 1.8, ease: 'easeOut', delay: 0 }} />
-      <motion.path d="M -1,-1 C 10,5 22,3 32,7 C 40,9 46,5 54,8"
-        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.2 }} />
-      <motion.path d="M 7,18 C 12,14 16,10 14,18 C 12,22 7,21 7,18"
-        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
-        transition={{ duration: 0.8, delay: 1.6 }} />
-      <motion.path d="M 18,7 C 14,12 10,16 18,14 C 22,12 21,7 18,7"
-        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
-        transition={{ duration: 0.8, delay: 1.8 }} />
-      <motion.path d="M 8,32 C 13,28 10,36 7,34" stroke="#4a9010" strokeWidth="0.7" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.7 }}
-        transition={{ duration: 0.6, delay: 2 }} />
-      <motion.path d="M 32,8 C 28,13 36,10 34,7" stroke="#4a9010" strokeWidth="0.7" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.7 }}
-        transition={{ duration: 0.6, delay: 2.2 }} />
+      {/* ── TOP-LEFT ── */}
+      {/* main stems hugging edges */}
+      <Stem d="M 0,0 C 1,12 -1,24 3,36 C 5,46 2,55 4,65" delay={0} />
+      <Stem d="M 0,0 C 12,1 24,-1 36,3 C 46,5 55,2 65,4" delay={0.1} />
+      {/* secondary branches */}
+      <Stem d="M 3,18 C 10,13 18,17 24,12 C 29,8 28,3 33,5" delay={0.7} width={1.1} />
+      <Stem d="M 3,38 C 11,33 20,37 27,32 C 33,28 31,22 37,24" delay={0.9} width={1.0} />
+      <Stem d="M 18,3 C 13,10 17,18 12,24 C 8,29 3,28 5,33" delay={0.8} width={1.1} />
+      <Stem d="M 38,3 C 33,11 37,20 32,27 C 28,33 22,31 24,37" delay={1.0} width={1.0} />
+      {/* leaves — lance/ivy shapes */}
+      <Leaf d="M 24,12 C 28,5 36,4 34,11 C 32,17 24,18 24,12 Z" delay={1.9} light />
+      <Leaf d="M 33,5 C 39,-1 46,1 42,8 C 39,13 32,12 33,5 Z" delay={2.1} />
+      <Leaf d="M 12,24 C 5,28 3,36 10,35 C 16,34 18,26 12,24 Z" delay={2.0} light />
+      <Leaf d="M 5,33 C 0,39 2,47 9,45 C 15,43 12,34 5,33 Z" delay={2.2} />
+      <Leaf d="M 27,32 C 35,27 42,30 38,37 C 35,42 26,41 27,32 Z" delay={2.3} light />
+      <Leaf d="M 37,24 C 44,19 50,22 47,29 C 44,35 36,34 37,24 Z" delay={2.1} />
+      {/* tendrils */}
+      <Tendril d="M 4,65 C 9,62 12,66 9,70 C 6,74 2,72 4,68 C 5,65 8,65 9,67" delay={2.8} />
+      <Tendril d="M 65,4 C 62,9 66,12 70,9 C 74,6 72,2 68,4 C 65,5 65,8 67,9" delay={3.0} />
+      <Tendril d="M 33,5 C 36,1 40,3 38,7 C 36,10 32,9 34,6" delay={3.2} />
+      <Tendril d="M 5,33 C 1,36 3,40 7,38 C 10,36 9,32 6,34" delay={3.1} />
 
-      {/* Top-right vines */}
-      <motion.path d="M 101,-1 C 95,10 97,22 93,32 C 91,40 95,46 92,54"
-        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.3 }} />
-      <motion.path d="M 101,-1 C 90,5 78,3 68,7 C 60,9 54,5 46,8"
-        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.5 }} />
-      <motion.path d="M 93,18 C 88,14 84,10 86,18 C 88,22 93,21 93,18"
-        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
-        transition={{ duration: 0.8, delay: 1.8 }} />
-      <motion.path d="M 82,7 C 86,12 90,16 82,14 C 78,12 79,7 82,7"
-        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
-        transition={{ duration: 0.8, delay: 2.0 }} />
+      {/* ── TOP-RIGHT ── */}
+      <Stem d="M 100,0 C 99,12 101,24 97,36 C 95,46 98,55 96,65" delay={0.15} />
+      <Stem d="M 100,0 C 88,1 76,-1 64,3 C 54,5 45,2 35,4" delay={0.25} />
+      <Stem d="M 97,18 C 90,13 82,17 76,12 C 71,8 72,3 67,5" delay={0.75} width={1.1} />
+      <Stem d="M 97,38 C 89,33 80,37 73,32 C 67,28 69,22 63,24" delay={0.95} width={1.0} />
+      <Stem d="M 82,3 C 87,10 83,18 88,24 C 92,29 97,28 95,33" delay={0.85} width={1.1} />
+      <Leaf d="M 76,12 C 72,5 64,4 66,11 C 68,17 76,18 76,12 Z" delay={1.95} light />
+      <Leaf d="M 67,5 C 61,-1 54,1 58,8 C 61,13 68,12 67,5 Z" delay={2.15} />
+      <Leaf d="M 88,24 C 95,28 97,36 90,35 C 84,34 82,26 88,24 Z" delay={2.05} light />
+      <Leaf d="M 95,33 C 100,39 98,47 91,45 C 85,43 88,34 95,33 Z" delay={2.25} />
+      <Leaf d="M 73,32 C 65,27 58,30 62,37 C 65,42 74,41 73,32 Z" delay={2.35} light />
+      <Tendril d="M 96,65 C 91,62 88,66 91,70 C 94,74 98,72 96,68 C 95,65 92,65 91,67" delay={2.9} />
+      <Tendril d="M 35,4 C 38,0 34,3 32,7 C 30,11 34,13 36,10 C 38,8 36,5 34,6" delay={3.1} />
+      <Tendril d="M 95,33 C 99,36 97,40 93,38 C 90,36 91,32 94,34" delay={3.2} />
 
-      {/* Bottom-left vines */}
-      <motion.path d="M -1,101 C 5,90 3,78 7,68 C 9,60 5,54 8,46"
-        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.6 }} />
-      <motion.path d="M -1,101 C 10,95 22,97 32,93 C 40,91 46,95 54,92"
-        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.8 }} />
-      <motion.path d="M 7,82 C 12,86 16,90 14,82 C 12,78 7,79 7,82"
-        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
-        transition={{ duration: 0.8, delay: 2.2 }} />
-      <motion.path d="M 18,93 C 14,88 10,84 18,86 C 22,88 21,93 18,93"
-        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
-        transition={{ duration: 0.8, delay: 2.4 }} />
+      {/* ── BOTTOM-LEFT ── */}
+      <Stem d="M 0,100 C 1,88 -1,76 3,64 C 5,54 2,45 4,35" delay={0.3} />
+      <Stem d="M 0,100 C 12,99 24,101 36,97 C 46,95 55,98 65,96" delay={0.4} />
+      <Stem d="M 3,82 C 10,87 18,83 24,88 C 29,92 28,97 33,95" delay={0.85} width={1.1} />
+      <Stem d="M 3,62 C 11,67 20,63 27,68 C 33,72 31,78 37,76" delay={1.05} width={1.0} />
+      <Stem d="M 18,97 C 13,90 17,82 12,76 C 8,71 3,72 5,67" delay={0.9} width={1.1} />
+      <Leaf d="M 24,88 C 28,95 36,96 34,89 C 32,83 24,82 24,88 Z" delay={2.1} light />
+      <Leaf d="M 33,95 C 39,101 46,99 42,92 C 39,87 32,88 33,95 Z" delay={2.3} />
+      <Leaf d="M 12,76 C 5,72 3,64 10,65 C 16,66 18,74 12,76 Z" delay={2.2} light />
+      <Leaf d="M 5,67 C 0,61 2,53 9,55 C 15,57 12,66 5,67 Z" delay={2.4} />
+      <Leaf d="M 27,68 C 35,73 42,70 38,63 C 35,58 26,59 27,68 Z" delay={2.5} light />
+      <Tendril d="M 4,35 C 9,38 12,34 9,30 C 6,26 2,28 4,32 C 5,35 8,35 9,33" delay={3.0} />
+      <Tendril d="M 65,96 C 62,91 66,88 70,91 C 74,94 72,98 68,96 C 65,95 65,92 67,91" delay={3.2} />
+      <Tendril d="M 5,67 C 1,64 3,60 7,62 C 10,64 9,68 6,66" delay={3.3} />
 
-      {/* Bottom-right vines */}
-      <motion.path d="M 101,101 C 95,90 97,78 93,68 C 91,60 95,54 92,46"
-        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-        transition={{ duration: 1.8, ease: 'easeOut', delay: 0.9 }} />
-      <motion.path d="M 101,101 C 90,95 78,97 68,93 C 60,91 54,95 46,92"
-        stroke="#4a9010" strokeWidth="1.4" fill="none" strokeLinecap="round"
-        initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-        transition={{ duration: 1.8, ease: 'easeOut', delay: 1.1 }} />
-      <motion.path d="M 93,82 C 88,86 84,90 86,82 C 88,78 93,79 93,82"
-        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
-        transition={{ duration: 0.8, delay: 2.6 }} />
-      <motion.path d="M 82,93 C 86,88 90,84 82,86 C 78,88 79,93 82,93"
-        stroke="#3a7008" strokeWidth="0.8" fill="#2a5806" strokeLinecap="round"
-        initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.8 }}
-        transition={{ duration: 0.8, delay: 2.8 }} />
+      {/* ── BOTTOM-RIGHT ── */}
+      <Stem d="M 100,100 C 99,88 101,76 97,64 C 95,54 98,45 96,35" delay={0.45} />
+      <Stem d="M 100,100 C 88,99 76,101 64,97 C 54,95 45,98 35,96" delay={0.55} />
+      <Stem d="M 97,82 C 90,87 82,83 76,88 C 71,92 72,97 67,95" delay={0.9} width={1.1} />
+      <Stem d="M 97,62 C 89,67 80,63 73,68 C 67,72 69,78 63,76" delay={1.1} width={1.0} />
+      <Stem d="M 82,97 C 87,90 83,82 88,76 C 92,71 97,72 95,67" delay={0.95} width={1.1} />
+      <Leaf d="M 76,88 C 72,95 64,96 66,89 C 68,83 76,82 76,88 Z" delay={2.2} light />
+      <Leaf d="M 67,95 C 61,101 54,99 58,92 C 61,87 68,88 67,95 Z" delay={2.4} />
+      <Leaf d="M 88,76 C 95,72 97,64 90,65 C 84,66 82,74 88,76 Z" delay={2.3} light />
+      <Leaf d="M 95,67 C 100,61 98,53 91,55 C 85,57 88,66 95,67 Z" delay={2.5} />
+      <Leaf d="M 73,68 C 65,73 58,70 62,63 C 65,58 74,59 73,68 Z" delay={2.6} light />
+      <Tendril d="M 96,35 C 91,38 88,34 91,30 C 94,26 98,28 96,32 C 95,35 92,35 91,33" delay={3.1} />
+      <Tendril d="M 35,96 C 38,100 34,97 30,93 C 28,89 32,87 35,91 C 37,94 36,97 34,96" delay={3.3} />
+      <Tendril d="M 95,67 C 99,64 97,60 93,62 C 90,64 91,68 94,66" delay={3.4} />
     </svg>
   </motion.div>
 );
