@@ -266,6 +266,17 @@ def list_vault(db: Session = Depends(get_db), current_user: User = Depends(get_c
     entries = db.query(VaultEntry).filter(VaultEntry.user_id == current_user.id).all()
     return [{"id": e.id, "service_name": e.service_name, "password": decrypt_password(e.encrypted_password), "armor_class": e.armor_class, "breach_count": e.breach_count or 0, "last_checked": e.last_checked} for e in entries]
 
+@app.put("/vault/edit/{entry_id}")
+def edit_vault_entry(entry_id: int, entry: VaultEntryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    db_entry = db.query(VaultEntry).filter(VaultEntry.id == entry_id, VaultEntry.user_id == current_user.id).first()
+    if not db_entry:
+        raise HTTPException(status_code=404, detail="Secret not found in your vault")
+    db_entry.service_name = entry.service_name
+    db_entry.encrypted_password = encrypt_password(entry.password)
+    db_entry.armor_class = entry.armor_class
+    db.commit()
+    return {"status": "Secret updated!"}
+
 @app.delete("/vault/delete/{entry_id}")
 def delete_vault_entry(entry_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     entry = db.query(VaultEntry).filter(VaultEntry.id == entry_id, VaultEntry.user_id == current_user.id).first()
