@@ -18,7 +18,7 @@ import {
   Skull, Trash2, Key, LogOut, User, Eye, Activity, Users,
   Beaker, ShieldAlert, Zap, Wand2, Star, Ghost, Crown, Radar,
   Pencil, Search, Check, ScrollText, ChevronDown, ChevronUp,
-  Lock, AlertTriangle, ArrowRight
+  AlertTriangle, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -124,9 +124,6 @@ function App() {
   const [manualNotes, setManualNotes] = useState('');
   const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
 
-  const [isLocked, setIsLocked] = useState(false);
-  const [lockPassword, setLockPassword] = useState('');
-  const [lockError, setLockError] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardStep, setOnboardStep] = useState(0);
 
@@ -212,7 +209,6 @@ function App() {
     try {
       const res = await axios.post(`${API_BASE}/auth/google`, { credential: response.credential });
       setToken(res.data.access_token);
-      setIsLocked(false);
     } catch { setAuthError("Google Sign-In failed. Please try again."); }
   }, []);
 
@@ -284,21 +280,6 @@ function App() {
 
   const logout = () => { setToken(''); setVaultItems([]); setBreachStatus({}); setActiveTab('lab'); };
 
-  const lockVault = () => { setIsLocked(true); setLockPassword(''); setLockError(''); };
-
-  const unlockVault = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const formData = new FormData();
-      formData.append('username', (user as any)?.username || '');
-      formData.append('password', lockPassword);
-      const res = await axios.post(`${API_BASE}/token`, formData);
-      setToken(res.data.access_token);
-      setIsLocked(false);
-      setLockPassword('');
-      setLockError('');
-    } catch { setLockError('Wrong password. Try again.'); }
-  };
 
   const generatePassword = async () => {
     setIsBrewing(true);
@@ -438,40 +419,6 @@ function App() {
   const UserAvatar = user && AVATARS.find(a => a.id === (user as any).avatar_url)?.icon || User;
   const userColor = user && AVATARS.find(a => a.id === (user as any).avatar_url)?.color || '#00f2ff';
 
-  if (isLocked) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0c] text-white flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/60" />
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-sm glass-card p-10 z-10 text-center">
-          <div className="p-5 inline-flex bg-white/5 rounded-2xl mb-6 text-gray-400"><Lock size={40} /></div>
-          <h2 className="text-2xl font-black uppercase mb-1">Vault Locked</h2>
-          <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-8">
-            {(user as any)?.display_name || (user as any)?.username}
-          </p>
-          <form onSubmit={unlockVault} className="space-y-4 mb-6">
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={lockPassword}
-              onChange={e => setLockPassword(e.target.value)}
-              autoFocus
-              className="w-full bg-white/5 border border-white/10 p-4 rounded-xl font-bold focus:border-neon-cyan outline-none transition-all"
-            />
-            {lockError && <p className="text-danger-red text-[10px] font-bold uppercase">{lockError}</p>}
-            <button type="submit" className="w-full py-4 rounded-xl bg-neon-cyan text-black font-black uppercase tracking-widest">
-              Unlock Vault
-            </button>
-          </form>
-          <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left space-y-2">
-            <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest">Using Google Sign-In?</p>
-            <button onClick={logout} className="w-full py-3 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 font-black uppercase text-[10px] transition-all flex items-center justify-center gap-2">
-              <LogOut size={13} /> Sign out &amp; sign back in with Google
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-[#e2e2e6] font-sans">
@@ -493,7 +440,6 @@ function App() {
               <p className="text-[8px] font-black uppercase text-gray-500 tracking-widest">{(user as any)?.role === 'admin' ? 'Grand Overseer' : 'Adventurer'}</p>
             </div>
           </div>
-          <button onClick={lockVault} className="w-full flex items-center justify-center gap-2 p-4 text-gray-500 hover:text-safety-amber transition-all font-black uppercase text-[10px]"><Lock size={14} /> Lock Vault</button>
           <button onClick={logout} className="w-full flex items-center justify-center gap-2 p-4 text-gray-500 hover:text-danger-red transition-all font-black uppercase text-[10px]"><LogOut size={14} /> Log Out</button>
         </div>
       </nav>
