@@ -559,7 +559,8 @@ function App() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.85, y: 30 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="glass-card p-12 max-w-md w-full text-center relative overflow-hidden"
+              style={{ background: 'rgba(18,18,22,0.98)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
+              className="p-12 max-w-md w-full text-center relative overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               <div className={`absolute inset-0 opacity-5 ${scanResult.compromised > 0 ? 'bg-danger-red' : 'bg-neon-cyan'}`} />
@@ -592,7 +593,10 @@ function App() {
               </div>
 
               <button
-                onClick={() => setScanResult(null)}
+                onClick={() => {
+                  if (scanResult.compromised > 0) setActiveTab('vault');
+                  setScanResult(null);
+                }}
                 className={`w-full py-4 rounded-xl font-black uppercase tracking-widest text-sm transition-all ${scanResult.compromised > 0 ? 'bg-danger-red/10 text-danger-red hover:bg-danger-red hover:text-white border border-danger-red/20' : 'bg-neon-cyan text-black hover:opacity-90'}`}
               >
                 {scanResult.compromised > 0 ? 'Understood — Check My Vault' : 'Return to the Kingdom'}
