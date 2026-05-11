@@ -518,6 +518,21 @@ function App() {
                   <div key={i} className="glass-card p-8 text-center"><div className="p-4 inline-block bg-white/5 rounded-full mb-4"><s.i size={32} /></div><p className="text-[10px] font-black uppercase text-gray-500 mb-2">{s.l}</p><h3 className="text-3xl font-black">{s.v || '...'}</h3></div>
                 ))}
               </div>
+              <div className="glass-card p-8 border-danger-red/10">
+                <h3 className="text-xl font-black uppercase mb-4 flex items-center gap-3 text-danger-red"><Radar size={20} /> Breach Control</h3>
+                <p className="text-[10px] font-black uppercase text-gray-500 mb-6">Auto-scan runs every 24h. Trigger a manual scan of all vault entries now.</p>
+                <button
+                  onClick={async () => {
+                    try {
+                      await axios.post(`${API_BASE}/admin/breach-scan`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                      alert("Scan complete! Check the backend logs for results.");
+                    } catch { alert("Scan failed."); }
+                  }}
+                  className="px-6 py-3 bg-danger-red/10 text-danger-red border border-danger-red/20 rounded-xl font-black uppercase text-[10px] hover:bg-danger-red hover:text-white transition-all flex items-center gap-2"
+                >
+                  <Radar size={14} /> Run Breach Scan Now
+                </button>
+              </div>
               <div className="glass-card p-10"><h3 className="text-xl font-black uppercase mb-8 flex items-center gap-3 text-neon-cyan"><Users /> Hall of Heroes</h3><table className="w-full text-left"><thead className="text-[10px] font-black uppercase text-gray-500 border-b border-white/5"><tr><th className="pb-6">Hero</th><th className="pb-6">Role</th><th className="pb-6 text-right">Action</th></tr></thead><tbody className="font-bold text-sm">{allUsers.map(u => (<tr key={u.id} className="border-b border-white/[0.02] hover:bg-white/[0.01] transition-all"><td className="py-6 flex items-center gap-3"><div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center"><User size={16} /></div>{u.display_name || u.username}</td><td><span className={`px-3 py-1 rounded-full text-[8px] uppercase font-black ${u.role === 'admin' ? 'bg-neon-cyan/20 text-neon-cyan' : 'bg-white/5 text-gray-500'}`}>{u.role}</span></td><td className="text-right">{u.username !== user?.username && <button onClick={() => banishUser(u.id, u.username)} className="p-3 bg-danger-red/10 text-danger-red rounded-lg hover:bg-danger-red hover:text-white"><Skull size={18} /></button>}</td></tr>))}</tbody></table></div>
             </motion.div>
           )}

@@ -291,6 +291,13 @@ def check_breach(entry_id: int, db: Session = Depends(get_db), current_user: Use
         db.commit()
     return {"breach_count": count}
 
+@app.post("/admin/breach-scan")
+async def trigger_breach_scan(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin": raise HTTPException(status_code=403)
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(_scan_executor, run_breach_scan, db)
+    return {"status": "Scan complete"}
+
 @app.get("/admin/stats")
 def get_admin_stats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role != "admin": raise HTTPException(status_code=403)
