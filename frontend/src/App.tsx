@@ -722,20 +722,20 @@ function App() {
 
                         {/* Arcane Inscriptions */}
                         {item.notes && (
-                          <div className="mt-3 border-t border-white/5 pt-3">
+                          <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 overflow-hidden">
                             <button
                               onClick={() => setExpandedNotes(prev => {
                                 const next = new Set(prev);
                                 next.has(item.id) ? next.delete(item.id) : next.add(item.id);
                                 return next;
                               })}
-                              className="w-full flex items-center gap-2 text-[9px] font-black uppercase text-gray-600 hover:text-gray-300 transition-all"
+                              className="w-full flex items-center gap-2 px-4 py-3 text-[10px] font-black uppercase text-amber-400 hover:text-amber-200 transition-all"
                             >
-                              <ScrollText size={12} /> Arcane Inscription
-                              {expandedNotes.has(item.id) ? <ChevronUp size={10} className="ml-auto" /> : <ChevronDown size={10} className="ml-auto" />}
+                              <ScrollText size={15} /> Arcane Inscription
+                              {expandedNotes.has(item.id) ? <ChevronUp size={13} className="ml-auto" /> : <ChevronDown size={13} className="ml-auto" />}
                             </button>
                             {expandedNotes.has(item.id) && (
-                              <p className="mt-2 text-[11px] text-gray-400 whitespace-pre-wrap break-words">{item.notes}</p>
+                              <p className="px-4 pb-4 text-xs text-amber-100/80 whitespace-pre-wrap break-words border-t border-amber-500/30 pt-3 leading-relaxed">{item.notes}</p>
                             )}
                           </div>
                         )}
