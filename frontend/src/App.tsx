@@ -547,11 +547,8 @@ function App() {
 
       <AnimatePresence>
         {scanResult && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-6"
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', pointerEvents: 'auto', cursor: 'default' }}
             onClick={() => setScanResult(null)}
           >
             <motion.div
@@ -559,8 +556,8 @@ function App() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.85, y: 30 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              style={{ background: 'rgba(18,18,22,0.98)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
-              className="p-12 max-w-md w-full text-center relative overflow-hidden"
+              style={{ background: 'rgba(18,18,22,0.98)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)', pointerEvents: 'auto', position: 'relative', maxWidth: '448px', width: '100%' }}
+              className="p-12 text-center overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               <div className={`absolute inset-0 opacity-5 ${scanResult.compromised > 0 ? 'bg-danger-red' : 'bg-neon-cyan'}`} />
@@ -593,6 +590,7 @@ function App() {
               </div>
 
               <button
+                style={{ pointerEvents: 'auto', cursor: 'pointer', position: 'relative', zIndex: 1 }}
                 onClick={() => {
                   if (scanResult.compromised > 0) setActiveTab('vault');
                   setScanResult(null);
@@ -602,7 +600,7 @@ function App() {
                 {scanResult.compromised > 0 ? 'Understood — Check My Vault' : 'Return to the Kingdom'}
               </button>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

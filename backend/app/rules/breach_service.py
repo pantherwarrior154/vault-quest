@@ -25,23 +25,27 @@ def check_password_breach(password: str) -> int:
             return int(count)
     return 0
 
-def run_breach_scan(db_session: Session):
-    entries = db_session.query(VaultEntry).all()
-    if not entries:
-        logger.info("[Breach Scan] No vault entries to scan.")
-        return
+def run_breach_scan(session_factory):
+    db = session_factory()
+    try:
+        entries = db.query(VaultEntry).all()
+        if not entries:
+            logger.info("[Breach Scan] No vault entries to scan.")
+            return
 
-    logger.info(f"[Breach Scan] Starting scan of {len(entries)} entries...")
-    flagged = 0
-    for entry in entries:
-        password = decrypt_password(entry.encrypted_password)
-        count = check_password_breach(password)
-        if count >= 0:
-            entry.breach_count = count
-            entry.last_checked = datetime.now(timezone.utc)
-            if count > 0:
-                flagged += 1
-                logger.warning(f"[Breach Scan] '{entry.service_name}' exposed {count:,} times!")
-        time.sleep(1.5)
-    db_session.commit()
-    logger.info(f"[Breach Scan] Complete. {flagged}/{len(entries)} entries compromised.")
+        logger.info(f"[Breach Scan] Starting scan of {len(entries)} entries...")
+        flagged = 0
+        for entry in entries:
+            password = decrypt_password(entry.encrypted_password)
+            count = check_password_breach(password)
+            if count >= 0:
+                entry.breach_count = count
+                entry.last_checked = datetime.now(timezone.utc)
+                if count > 0:
+                    flagged += 1
+                    logger.warning(f"[Breach Scan] '{entry.service_name}' exposed {count:,} times!")
+            time.sleep(1.5)
+        db.commit()
+        logger.info(f"[Breach Scan] Complete. {flagged}/{len(entries)} entries compromised.")
+    finally:
+        db.close()

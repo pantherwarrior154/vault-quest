@@ -44,14 +44,11 @@ _scan_executor = ThreadPoolExecutor(max_workers=1)
 async def _breach_scan_loop():
     await asyncio.sleep(30)  # let the server finish starting up
     while True:
-        db = SessionLocal()
         try:
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(_scan_executor, run_breach_scan, db)
+            await loop.run_in_executor(_scan_executor, run_breach_scan, SessionLocal)
         except Exception as e:
             print(f"[Breach Scan] Error: {e}")
-        finally:
-            db.close()
         await asyncio.sleep(60 * 60 * 24)  # run again in 24 hours
 
 @asynccontextmanager
@@ -295,8 +292,7 @@ def check_breach(entry_id: int, db: Session = Depends(get_db), current_user: Use
 async def trigger_breach_scan(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role != "admin": raise HTTPException(status_code=403)
     loop = asyncio.get_event_loop()
-    await loop.run_in_executor(_scan_executor, run_breach_scan, db)
-    db.expire_all()  # flush session cache so counts reflect what the thread committed
+    await loop.run_in_executor(_scan_executor, run_breach_scan, SessionLocal)
     total = db.query(VaultEntry).count()
     compromised = db.query(VaultEntry).filter(VaultEntry.breach_count > 0).count()
     return {"total": total, "compromised": compromised, "safe": total - compromised}
