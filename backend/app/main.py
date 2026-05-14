@@ -46,7 +46,7 @@ async def _breach_scan_loop():
     await asyncio.sleep(30)  # let the server finish starting up
     while True:
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(_scan_executor, run_breach_scan, SessionLocal)
         except Exception as e:
             print(f"[Breach Scan] Error: {e}")
@@ -144,6 +144,7 @@ class VaultEntryOut(BaseModel):
     breach_count: int
     last_checked: Optional[datetime]
     notes: Optional[str]
+    created_at: Optional[datetime]
 
 # --- Dependency ---
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -286,13 +287,15 @@ def add_to_vault(entry: VaultEntryCreate, db: Session = Depends(get_db), current
 @app.get("/vault/list", response_model=List[VaultEntryOut])
 def list_vault(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     entries = db.query(VaultEntry).filter(VaultEntry.user_id == current_user.id).all()
-    return [{"id": e.id, "service_name": e.service_name, "password": decrypt_password(e.encrypted_password), "armor_class": e.armor_class, "breach_count": e.breach_count or 0, "last_checked": e.last_checked, "notes": e.notes} for e in entries]
+    return [{"id": e.id, "service_name": e.service_name, "password": decrypt_password(e.encrypted_password), "armor_class": e.armor_class, "breach_count": e.breach_count or 0, "last_checked": e.last_checked, "notes": e.notes, "created_at": e.created_at} for e in entries]
 
 @app.put("/vault/edit/{entry_id}")
 def edit_vault_entry(entry_id: int, entry: VaultEntryCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db_entry = db.query(VaultEntry).filter(VaultEntry.id == entry_id, VaultEntry.user_id == current_user.id).first()
     if not db_entry:
         raise HTTPException(status_code=404, detail="Secret not found in your vault")
+    if entry.password != decrypt_password(db_entry.encrypted_password):
+        db_entry.created_at = datetime.now(dt_timezone.utc)
     db_entry.service_name = entry.service_name
     db_entry.encrypted_password = encrypt_password(entry.password)
     db_entry.armor_class = entry.armor_class
@@ -325,7 +328,7 @@ def check_breach(entry_id: int, db: Session = Depends(get_db), current_user: Use
 @app.post("/admin/breach-scan")
 async def trigger_breach_scan(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role != "admin": raise HTTPException(status_code=403)
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     await loop.run_in_executor(_scan_executor, run_breach_scan, SessionLocal)
     total = db.query(VaultEntry).count()
     compromised = db.query(VaultEntry).filter(VaultEntry.breach_count > 0).count()

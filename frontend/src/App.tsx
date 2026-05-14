@@ -17,7 +17,8 @@ import {
   Shield, FlaskConical, Scroll, Sparkles, Copy, RefreshCw,
   Skull, Trash2, Key, LogOut, User, Eye, Activity, Users,
   Beaker, ShieldAlert, Zap, Wand2, Star, Ghost, Crown, Radar,
-  Pencil, Search, Check, ScrollText, ChevronDown, ChevronUp
+  Pencil, Search, Check, ScrollText, ChevronDown, ChevronUp,
+  ArrowRight, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -52,6 +53,115 @@ const getPasswordStrength = (password: string) => {
   return { score: finalScore, ...levels[finalScore] };
 };
 
+const Leaf = ({ d, delay, light = false }: { d: string; delay: number; light?: boolean }) => (
+  <motion.path d={d} fill={light ? '#5aaa18' : '#2d6a04'}
+    stroke="#1a4200" strokeWidth="0.3"
+    initial={{ opacity: 0 }} animate={{ opacity: [0, 0.95, 0.85] }}
+    transition={{ delay, duration: 0.6, times: [0, 0.6, 1] }} />
+);
+
+const Stem = ({ d, delay, width = 1.6 }: { d: string; delay: number; width?: number }) => (
+  <motion.path d={d} stroke="#2d6a04" strokeWidth={width} fill="none" strokeLinecap="round"
+    initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+    transition={{ duration: 2.2, ease: 'easeOut', delay }} />
+);
+
+const Tendril = ({ d, delay }: { d: string; delay: number }) => (
+  <motion.path d={d} stroke="#5aaa18" strokeWidth="0.6" fill="none" strokeLinecap="round"
+    initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.75 }}
+    transition={{ duration: 0.9, ease: 'easeOut', delay }} />
+);
+
+let _rotVinesId = 0;
+const RotVines = () => {
+  const gradId = React.useRef(`rg-${_rotVinesId++}`).current;
+  return (
+  <motion.div className="absolute inset-0 pointer-events-none overflow-hidden"
+    style={{ borderRadius: 'inherit' }}
+    animate={{ opacity: [0.8, 1, 0.8] }}
+    exit={{ opacity: 0, transition: { duration: 2, ease: 'easeOut' } }}
+    transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
+    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <defs>
+        <radialGradient id={gradId} cx="50%" cy="50%" r="68%">
+          <stop offset="22%" stopColor="transparent" />
+          <stop offset="72%" stopColor="rgba(5,28,0,0.22)" />
+          <stop offset="100%" stopColor="rgba(2,14,0,0.58)" />
+        </radialGradient>
+      </defs>
+      <rect width="100" height="100" fill={`url(#${gradId})`} />
+
+      {/* ── TOP-LEFT ── */}
+      {/* main stems hugging edges */}
+      <Stem d="M 0,0 C 1,12 -1,24 3,36 C 5,46 2,55 4,65" delay={0} />
+      <Stem d="M 0,0 C 12,1 24,-1 36,3 C 46,5 55,2 65,4" delay={0.1} />
+      {/* secondary branches */}
+      <Stem d="M 3,18 C 10,13 18,17 24,12 C 29,8 28,3 33,5" delay={0.7} width={1.1} />
+      <Stem d="M 3,38 C 11,33 20,37 27,32 C 33,28 31,22 37,24" delay={0.9} width={1.0} />
+      <Stem d="M 18,3 C 13,10 17,18 12,24 C 8,29 3,28 5,33" delay={0.8} width={1.1} />
+      <Stem d="M 38,3 C 33,11 37,20 32,27 C 28,33 22,31 24,37" delay={1.0} width={1.0} />
+      {/* leaves — lance/ivy shapes */}
+      <Leaf d="M 24,12 C 28,5 36,4 34,11 C 32,17 24,18 24,12 Z" delay={1.9} light />
+      <Leaf d="M 33,5 C 39,-1 46,1 42,8 C 39,13 32,12 33,5 Z" delay={2.1} />
+      <Leaf d="M 12,24 C 5,28 3,36 10,35 C 16,34 18,26 12,24 Z" delay={2.0} light />
+      <Leaf d="M 5,33 C 0,39 2,47 9,45 C 15,43 12,34 5,33 Z" delay={2.2} />
+      <Leaf d="M 27,32 C 35,27 42,30 38,37 C 35,42 26,41 27,32 Z" delay={2.3} light />
+      <Leaf d="M 37,24 C 44,19 50,22 47,29 C 44,35 36,34 37,24 Z" delay={2.1} />
+      {/* tendrils */}
+      <Tendril d="M 4,65 C 9,62 12,66 9,70 C 6,74 2,72 4,68 C 5,65 8,65 9,67" delay={2.8} />
+      <Tendril d="M 65,4 C 62,9 66,12 70,9 C 74,6 72,2 68,4 C 65,5 65,8 67,9" delay={3.0} />
+      <Tendril d="M 33,5 C 36,1 40,3 38,7 C 36,10 32,9 34,6" delay={3.2} />
+      <Tendril d="M 5,33 C 1,36 3,40 7,38 C 10,36 9,32 6,34" delay={3.1} />
+
+      {/* ── TOP-RIGHT ── */}
+      <Stem d="M 100,0 C 99,12 101,24 97,36 C 95,46 98,55 96,65" delay={0.15} />
+      <Stem d="M 100,0 C 88,1 76,-1 64,3 C 54,5 45,2 35,4" delay={0.25} />
+      <Stem d="M 97,18 C 90,13 82,17 76,12 C 71,8 72,3 67,5" delay={0.75} width={1.1} />
+      <Stem d="M 97,38 C 89,33 80,37 73,32 C 67,28 69,22 63,24" delay={0.95} width={1.0} />
+      <Stem d="M 82,3 C 87,10 83,18 88,24 C 92,29 97,28 95,33" delay={0.85} width={1.1} />
+      <Leaf d="M 76,12 C 72,5 64,4 66,11 C 68,17 76,18 76,12 Z" delay={1.95} light />
+      <Leaf d="M 67,5 C 61,-1 54,1 58,8 C 61,13 68,12 67,5 Z" delay={2.15} />
+      <Leaf d="M 88,24 C 95,28 97,36 90,35 C 84,34 82,26 88,24 Z" delay={2.05} light />
+      <Leaf d="M 95,33 C 100,39 98,47 91,45 C 85,43 88,34 95,33 Z" delay={2.25} />
+      <Leaf d="M 73,32 C 65,27 58,30 62,37 C 65,42 74,41 73,32 Z" delay={2.35} light />
+      <Tendril d="M 96,65 C 91,62 88,66 91,70 C 94,74 98,72 96,68 C 95,65 92,65 91,67" delay={2.9} />
+      <Tendril d="M 35,4 C 38,0 34,3 32,7 C 30,11 34,13 36,10 C 38,8 36,5 34,6" delay={3.1} />
+      <Tendril d="M 95,33 C 99,36 97,40 93,38 C 90,36 91,32 94,34" delay={3.2} />
+
+      {/* ── BOTTOM-LEFT ── */}
+      <Stem d="M 0,100 C 1,88 -1,76 3,64 C 5,54 2,45 4,35" delay={0.3} />
+      <Stem d="M 0,100 C 12,99 24,101 36,97 C 46,95 55,98 65,96" delay={0.4} />
+      <Stem d="M 3,82 C 10,87 18,83 24,88 C 29,92 28,97 33,95" delay={0.85} width={1.1} />
+      <Stem d="M 3,62 C 11,67 20,63 27,68 C 33,72 31,78 37,76" delay={1.05} width={1.0} />
+      <Stem d="M 18,97 C 13,90 17,82 12,76 C 8,71 3,72 5,67" delay={0.9} width={1.1} />
+      <Leaf d="M 24,88 C 28,95 36,96 34,89 C 32,83 24,82 24,88 Z" delay={2.1} light />
+      <Leaf d="M 33,95 C 39,101 46,99 42,92 C 39,87 32,88 33,95 Z" delay={2.3} />
+      <Leaf d="M 12,76 C 5,72 3,64 10,65 C 16,66 18,74 12,76 Z" delay={2.2} light />
+      <Leaf d="M 5,67 C 0,61 2,53 9,55 C 15,57 12,66 5,67 Z" delay={2.4} />
+      <Leaf d="M 27,68 C 35,73 42,70 38,63 C 35,58 26,59 27,68 Z" delay={2.5} light />
+      <Tendril d="M 4,35 C 9,38 12,34 9,30 C 6,26 2,28 4,32 C 5,35 8,35 9,33" delay={3.0} />
+      <Tendril d="M 65,96 C 62,91 66,88 70,91 C 74,94 72,98 68,96 C 65,95 65,92 67,91" delay={3.2} />
+      <Tendril d="M 5,67 C 1,64 3,60 7,62 C 10,64 9,68 6,66" delay={3.3} />
+
+      {/* ── BOTTOM-RIGHT ── */}
+      <Stem d="M 100,100 C 99,88 101,76 97,64 C 95,54 98,45 96,35" delay={0.45} />
+      <Stem d="M 100,100 C 88,99 76,101 64,97 C 54,95 45,98 35,96" delay={0.55} />
+      <Stem d="M 97,82 C 90,87 82,83 76,88 C 71,92 72,97 67,95" delay={0.9} width={1.1} />
+      <Stem d="M 97,62 C 89,67 80,63 73,68 C 67,72 69,78 63,76" delay={1.1} width={1.0} />
+      <Stem d="M 82,97 C 87,90 83,82 88,76 C 92,71 97,72 95,67" delay={0.95} width={1.1} />
+      <Leaf d="M 76,88 C 72,95 64,96 66,89 C 68,83 76,82 76,88 Z" delay={2.2} light />
+      <Leaf d="M 67,95 C 61,101 54,99 58,92 C 61,87 68,88 67,95 Z" delay={2.4} />
+      <Leaf d="M 88,76 C 95,72 97,64 90,65 C 84,66 82,74 88,76 Z" delay={2.3} light />
+      <Leaf d="M 95,67 C 100,61 98,53 91,55 C 85,57 88,66 95,67 Z" delay={2.5} />
+      <Leaf d="M 73,68 C 65,73 58,70 62,63 C 65,58 74,59 73,68 Z" delay={2.6} light />
+      <Tendril d="M 96,35 C 91,38 88,34 91,30 C 94,26 98,28 96,32 C 95,35 92,35 91,33" delay={3.1} />
+      <Tendril d="M 35,96 C 38,100 34,97 30,93 C 28,89 32,87 35,91 C 37,94 36,97 34,96" delay={3.3} />
+      <Tendril d="M 95,67 C 99,64 97,60 93,62 C 90,64 91,68 94,66" delay={3.4} />
+    </svg>
+  </motion.div>
+  );
+};
+
 const PotencyMeter = ({ password }: { password: string }) => {
   const { score, label, color } = getPasswordStrength(password);
   return (
@@ -76,7 +186,7 @@ const PotencyMeter = ({ password }: { password: string }) => {
 function App() {
   const [token, setToken] = useState(localStorage.getItem('vq_token') || '');
   const googleButtonRef = useRef<HTMLDivElement>(null);
-  const [googleLoaded, setGoogleLoaded] = useState(false);
+
 
   const [user, setUser] = useState(null);
   const [isInitiated, setIsInitiated] = useState(true);
@@ -102,7 +212,6 @@ function App() {
 
   const [adminStats, setAdminStats] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
-  const [loadingStats, setLoadingStats] = useState(false);
   const [breachStatus, setBreachStatus] = useState({});
   const [scanResult, setScanResult] = useState<{ total: number; compromised: number; safe: number } | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -122,6 +231,11 @@ function App() {
   const [isBrewingRune, setIsBrewingRune] = useState(false);
   const [manualNotes, setManualNotes] = useState('');
   const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
+
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardStep, setOnboardStep] = useState(0);
+  const [breachAlert, setBreachAlert] = useState<{ serviceName: string; count: number; itemId: number } | null>(null);
+  const [breachDetailsOpen, setBreachDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -143,6 +257,11 @@ function App() {
   );
 
   const hasBreaches = vaultItems.some((item: any) => item.breach_count > 0);
+
+  const getDaysOld = (dateStr: string) => {
+    if (!dateStr) return 0;
+    return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+  };
 
   const generatePassphrase = async () => {
     setIsBrewingRune(true);
@@ -188,6 +307,10 @@ function App() {
       await axios.post(`${API_BASE}/profile/update`, {
         display_name: setupName, avatar_url: selectedAvatar
       }, { headers: { Authorization: `Bearer ${token}` } });
+      if (!localStorage.getItem('vq_onboarded')) {
+        setShowOnboarding(true);
+        setOnboardStep(0);
+      }
       fetchMe();
     } catch { showToast('Failed to forge identity.', 'error'); }
   };
@@ -205,7 +328,6 @@ function App() {
       if (!googleButtonRef.current || !window.google) return;
       window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleResponse });
       window.google.accounts.id.renderButton(googleButtonRef.current, { theme: "filled_blue", size: "large", width: "100%" });
-      setGoogleLoaded(true);
     };
     if (window.google) {
       initGoogle();
@@ -231,18 +353,17 @@ function App() {
   };
 
   const fetchAdminStats = async () => {
-    setLoadingStats(true);
     try {
       const res = await axios.get(`${API_BASE}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } });
       setAdminStats(res.data);
-    } finally { setLoadingStats(false); }
+    } catch {}
   };
 
   const fetchAllUsers = async () => {
     try {
       const res = await axios.get(`${API_BASE}/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
       setAllUsers(res.data);
-    } catch {}
+    } catch { showToast('Failed to load heroes.', 'error'); }
   };
 
   const banishUser = async (userId: number, userName: string) => {
@@ -267,6 +388,7 @@ function App() {
 
   const logout = () => { setToken(''); setVaultItems([]); setBreachStatus({}); setActiveTab('lab'); };
 
+
   const generatePassword = async () => {
     setIsBrewing(true);
     try {
@@ -282,7 +404,13 @@ function App() {
     setBreachStatus(prev => ({ ...prev, [id]: { loading: true } }));
     try {
       const res = await axios.get(`${API_BASE}/vault/check-breach/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setBreachStatus(prev => ({ ...prev, [id]: { loading: false, count: res.data.breach_count } }));
+      const count = res.data.breach_count;
+      setBreachStatus(prev => ({ ...prev, [id]: { loading: false, count } }));
+      if (count > 0) {
+        const item = vaultItems.find((i: any) => i.id === id);
+        setBreachDetailsOpen(false);
+        setBreachAlert({ serviceName: (item as any)?.service_name || 'Unknown', count, itemId: id });
+      }
     } catch {
       setBreachStatus(prev => ({ ...prev, [id]: { loading: false, error: true } }));
     }
@@ -294,7 +422,7 @@ function App() {
     try {
       await axios.post(`${API_BASE}/vault/add`, {
         service_name: serviceName, password: brewedPassword,
-        armor_class: complexity === 3 ? "Legendary" : complexity === 2 ? "Master" : "Common"
+        armor_class: complexity === 3 ? "Legendary" : complexity === 2 ? "Rare" : "Common"
       }, { headers: { Authorization: `Bearer ${token}` } });
       setServiceName(''); setBrewedPassword('');
       showToast('Secret vaulted!');
@@ -309,8 +437,10 @@ function App() {
     if (!manualServiceName || !manualPassword) return;
     setSaving(true);
     try {
+      const strengthScore = getPasswordStrength(manualPassword).score;
+      const autoArmorClass = strengthScore >= 4 ? 'Epic' : strengthScore >= 3 ? 'Rare' : strengthScore >= 2 ? 'Uncommon' : 'Common';
       await axios.post(`${API_BASE}/vault/add`, {
-        service_name: manualServiceName, password: manualPassword, armor_class: "Common", notes: manualNotes || null
+        service_name: manualServiceName, password: manualPassword, armor_class: autoArmorClass, notes: manualNotes || null
       }, { headers: { Authorization: `Bearer ${token}` } });
       setManualServiceName(''); setManualPassword(''); setManualNotes('');
       showToast('Secret forged and stored!');
@@ -339,9 +469,12 @@ function App() {
         armor_class: (entry as any)?.armor_class || 'Common',
         notes: editNotes || null
       }, { headers: { Authorization: `Bearer ${token}` } });
+      const passwordChanged = !!editPassword;
+      const savedId = editingId;
       showToast('Secret reforged!');
       setEditingId(null); setEditPassword(''); setEditNotes('');
-      fetchVault();
+      await fetchVault();
+      if (passwordChanged) scoutBreach(savedId);
     } catch { showToast('Failed to reforge secret.', 'error'); }
     finally { setEditSaving(false); }
   };
@@ -402,6 +535,7 @@ function App() {
 
   const UserAvatar = user && AVATARS.find(a => a.id === (user as any).avatar_url)?.icon || User;
   const userColor = user && AVATARS.find(a => a.id === (user as any).avatar_url)?.color || '#00f2ff';
+
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-[#e2e2e6] font-sans">
@@ -615,7 +749,17 @@ function App() {
               {/* Vault Grid */}
               <div className="grid grid-cols-3 gap-6">
                 {filteredVaultItems.map((item: any, i: number) => (
-                  <div key={item.id || i} className="glass-card p-6 border-white/5 hover:border-neon-cyan/20 transition-all group relative">
+                  <div
+                    key={item.id || i}
+                    className="glass-card p-6 transition-all group relative overflow-hidden"
+                    style={getDaysOld(item.created_at) >= 90
+                      ? { borderColor: 'rgba(60,120,5,0.5)' }
+                      : { borderColor: 'rgba(255,255,255,0.05)' }}
+                  >
+                    {/* Rotting vine effect */}
+                    <AnimatePresence>
+                      {getDaysOld(item.created_at) >= 90 && <RotVines key="vines" />}
+                    </AnimatePresence>
                     {editingId === item.id ? (
                       /* Edit Form */
                       <div className="space-y-3">
@@ -689,6 +833,13 @@ function App() {
 
                         <h4 className="font-black uppercase mb-1">{item.service_name}</h4>
 
+                        {getDaysOld(item.created_at) >= 90 && (
+                          <div className="relative z-10 mb-2 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-400 text-[8px] font-black uppercase tracking-wide animate-pulse">
+                            <AlertTriangle size={9} />
+                            {getDaysOld(item.created_at)}d old — Rotate this!
+                          </div>
+                        )}
+
                         {/* Breach Status */}
                         <div className="mb-3 min-h-[20px]">
                           {breachStatus[item.id]?.count > 0 && (
@@ -726,7 +877,7 @@ function App() {
                             <button
                               onClick={() => setExpandedNotes(prev => {
                                 const next = new Set(prev);
-                                next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                                if (next.has(item.id)) { next.delete(item.id); } else { next.add(item.id); }
                                 return next;
                               })}
                               className="w-full flex items-center gap-2 px-4 py-3 text-[10px] font-black uppercase text-amber-400 hover:text-amber-200 transition-all"
@@ -795,6 +946,213 @@ function App() {
         </AnimatePresence>
       </main>
 
+      {/* Breach Alert Modal */}
+      <AnimatePresence>
+        {breachAlert && (() => {
+          const alertItem = vaultItems.find((i: any) => i.id === breachAlert.itemId) as any;
+          const daysOld = alertItem ? getDaysOld(alertItem.created_at) : null;
+          const severity =
+            breachAlert.count >= 1_000_000 ? { label: 'Catastrophic', color: '#ff003c' } :
+            breachAlert.count >= 100_000  ? { label: 'Critical',      color: '#ff2d55' } :
+            breachAlert.count >= 10_000   ? { label: 'Severe',        color: '#ff6b35' } :
+            breachAlert.count >= 1_000    ? { label: 'High',          color: '#ffb800' } :
+            breachAlert.count >= 100      ? { label: 'Moderate',      color: '#ffd700' } :
+                                            { label: 'Low',            color: '#a8e063' };
+          return (
+            <div style={{ position: 'fixed', bottom: '32px', right: '32px', zIndex: 10001, pointerEvents: 'none' }}>
+              <motion.div
+                initial={{ scale: 0.85, y: 30, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.85, y: 30, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                style={{ background: 'rgba(10,3,3,0.98)', border: '1px solid rgba(255,0,60,0.4)', borderRadius: '14px', width: '320px', position: 'relative', overflow: 'hidden', boxShadow: '0 0 40px rgba(255,0,60,0.2), 0 8px 32px rgba(0,0,0,0.6)', pointerEvents: 'auto' }}
+                className="p-6 text-center"
+              >
+                {/* Pulsing red vignette */}
+                <motion.div
+                  className="absolute inset-0 pointer-events-none"
+                  animate={{ opacity: [0.05, 0.14, 0.05] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(255,0,60,0.5) 0%, transparent 70%)' }}
+                />
+                {/* Top sweep bar */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden">
+                  <motion.div
+                    animate={{ x: ['-100%', '200%'] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1 }}
+                    style={{ width: '40%', height: '100%', background: 'linear-gradient(90deg, transparent, rgba(255,0,60,0.9), transparent)' }}
+                  />
+                </div>
+
+                <div className="relative">
+                  {/* Skull with pulse ring */}
+                  <div className="relative inline-flex mb-3 items-center justify-center">
+                    <motion.div
+                      className="absolute rounded-full"
+                      animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0, 0.3] }}
+                      transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
+                      style={{ width: 64, height: 64, background: 'rgba(255,0,60,0.25)' }}
+                    />
+                    <motion.div
+                      animate={{ rotate: [0, -4, 4, -4, 0] }}
+                      transition={{ duration: 0.35, repeat: Infinity, repeatDelay: 2.5 }}
+                      className="p-3 rounded-xl"
+                      style={{ background: 'rgba(255,0,60,0.12)', color: '#ff003c' }}
+                    >
+                      <Skull size={32} />
+                    </motion.div>
+                  </div>
+
+                  <p className="text-[7px] font-black uppercase tracking-[0.5em] mb-1" style={{ color: 'rgba(255,0,60,0.55)' }}>
+                    ⚠ Breach Detected ⚠
+                  </p>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-white leading-none mb-0.5">Your Secret</h2>
+                  <h2 className="text-xl font-black uppercase tracking-tight leading-none mb-4" style={{ color: '#ff003c' }}>Has Been Seen</h2>
+
+                  <div className="inline-block px-3 py-1 rounded-lg border mb-4" style={{ borderColor: 'rgba(255,0,60,0.35)', background: 'rgba(255,0,60,0.1)' }}>
+                    <span className="font-black uppercase text-xs tracking-widest" style={{ color: '#ff003c' }}>{breachAlert.serviceName}</span>
+                  </div>
+
+                  <div className="rounded-xl border p-3 mb-4" style={{ background: 'rgba(255,0,60,0.08)', borderColor: 'rgba(255,0,60,0.2)' }}>
+                    <p className="text-[7px] font-black uppercase tracking-widest mb-1" style={{ color: 'rgba(255,0,60,0.5)' }}>Dark Web Exposures</p>
+                    <p className="text-3xl font-black tabular-nums" style={{ color: '#ff003c', textShadow: '0 0 20px rgba(255,0,60,0.5)' }}>
+                      {breachAlert.count.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <p className="text-[10px] text-gray-500 mb-4 leading-relaxed">
+                    Enemies may already hold this secret — forge a new one.
+                  </p>
+
+                  {/* More Info toggle */}
+                  <button
+                    onClick={() => setBreachDetailsOpen(o => !o)}
+                    className="w-full flex items-center justify-center gap-1 py-2 mb-4 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                    style={{ color: 'rgba(255,0,60,0.6)', background: 'rgba(255,0,60,0.06)', border: '1px solid rgba(255,0,60,0.15)' }}
+                  >
+                    <ShieldAlert size={11} />
+                    {breachDetailsOpen ? 'Hide Details' : 'More Information'}
+                    <motion.span animate={{ rotate: breachDetailsOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="inline-block">
+                      <ChevronDown size={11} />
+                    </motion.span>
+                  </button>
+
+                  {/* Expanded details */}
+                  <AnimatePresence>
+                    {breachDetailsOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <div className="space-y-3 mb-4 text-left">
+                          {/* Severity */}
+                          <div className="rounded-lg p-3 border" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                            <p className="text-[7px] font-black uppercase tracking-widest text-gray-600 mb-1">Threat Level</p>
+                            <div className="flex items-center gap-2">
+                              <motion.div
+                                animate={{ opacity: [1, 0.4, 1] }}
+                                transition={{ duration: 1.2, repeat: Infinity }}
+                                className="w-2 h-2 rounded-full"
+                                style={{ background: severity.color }}
+                              />
+                              <span className="text-sm font-black uppercase" style={{ color: severity.color }}>{severity.label}</span>
+                            </div>
+                            <p className="text-[9px] text-gray-500 mt-2 leading-relaxed">
+                              {breachAlert.count >= 1_000_000
+                                ? `This password has been leaked ${breachAlert.count.toLocaleString()} times — it lives in every hacker's wordlist. Automated attack tools will crack an account using this password in seconds. Treat it as already stolen.`
+                                : breachAlert.count >= 100_000
+                                ? `Seen ${breachAlert.count.toLocaleString()} times across major breach dumps. It appears in widely distributed databases that attackers actively download and use in credential-stuffing attacks against popular services.`
+                                : breachAlert.count >= 10_000
+                                ? `Found ${breachAlert.count.toLocaleString()} times in known breach data. This password has spread across enough dumps that any serious attacker's list will include it. Don't rely on it for any account.`
+                                : breachAlert.count >= 1_000
+                                ? `Exposed ${breachAlert.count.toLocaleString()} times. It has appeared in multiple breach datasets — targeted attacks and credential-stuffing tools may already carry it.`
+                                : breachAlert.count >= 100
+                                ? `Spotted ${breachAlert.count.toLocaleString()} times in breach records. It has leaked at least once and is circulating in niche breach collections. Still a real risk.`
+                                : `Appeared ${breachAlert.count.toLocaleString()} time${breachAlert.count > 1 ? 's' : ''} in known breach data. Uncommon, but confirmed compromised — it must still be rotated immediately.`}
+                            </p>
+                          </div>
+
+                          {/* Stats row */}
+                          <div className="grid grid-cols-2 gap-2">
+                            {daysOld !== null && (
+                              <div className="rounded-lg p-2 border text-center" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                                <p className="text-[7px] font-black uppercase tracking-widest text-gray-600 mb-0.5">Password Age</p>
+                                <p className="text-base font-black text-white">{daysOld}d</p>
+                              </div>
+                            )}
+                            {alertItem?.armor_class && (
+                              <div className="rounded-lg p-2 border text-center" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                                <p className="text-[7px] font-black uppercase tracking-widest text-gray-600 mb-0.5">Armor Class</p>
+                                <p className="text-base font-black text-white">{alertItem.armor_class}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action checklist */}
+                          <div className="rounded-lg p-3 border" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                            <p className="text-[7px] font-black uppercase tracking-widest text-gray-600 mb-2">Recommended Actions</p>
+                            {[
+                              'Rotate this password immediately',
+                              'Use a unique password for this service',
+                              'Enable 2FA if available',
+                              'Never reuse this password elsewhere',
+                            ].map(action => (
+                              <div key={action} className="flex items-start gap-2 mb-1 last:mb-0">
+                                <span style={{ color: '#ff003c', flexShrink: 0, marginTop: 1 }}>›</span>
+                                <span className="text-[9px] text-gray-400 leading-tight">{action}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* How it works */}
+                          <div className="rounded-lg p-3 border" style={{ background: 'rgba(0,242,255,0.03)', borderColor: 'rgba(0,242,255,0.1)' }}>
+                            <p className="text-[7px] font-black uppercase tracking-widest mb-1" style={{ color: 'rgba(0,242,255,0.5)' }}>How We Check</p>
+                            <p className="text-[9px] leading-relaxed" style={{ color: 'rgba(0,242,255,0.45)' }}>
+                              Only the first 5 characters of your password's SHA-1 hash are sent to HaveIBeenPwned. Your actual password never leaves this device.
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const item = vaultItems.find((i: any) => i.id === breachAlert.itemId);
+                        setBreachAlert(null);
+                        if (item) {
+                          setActiveTab('vault');
+                          setEditingId(breachAlert.itemId);
+                          setEditService((item as any).service_name);
+                          setEditPassword('');
+                          setEditNotes((item as any).notes || '');
+                        }
+                      }}
+                      className="flex-1 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all flex items-center justify-center gap-1"
+                      style={{ background: '#ff003c', color: '#fff' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,0,60,0.75)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#ff003c')}
+                    >
+                      <RefreshCw size={12} /> Rotate Now
+                    </button>
+                    <button
+                      onClick={() => setBreachAlert(null)}
+                      className="flex-1 py-3 rounded-xl bg-white/5 text-gray-400 font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
+
       {/* Scan Result Modal */}
       <AnimatePresence>
         {scanResult && (
@@ -850,6 +1208,53 @@ function App() {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* Onboarding Quest Modal */}
+      <AnimatePresence>
+        {showOnboarding && (() => {
+          const steps = [
+            { icon: FlaskConical, color: '#00f2ff', title: 'The Alchemist\'s Lab', body: 'Brew powerful password potions using the Lab. Choose your potion length and complexity — or forge memorable Rune Words. Your first line of defence.' },
+            { icon: Scroll, color: '#bd00ff', title: 'The Secret Vault', body: 'Every secret you forge is encrypted with AES-256 and stored safely in your Vault. Add notes, copy with one click, and edit any time.' },
+            { icon: Radar, color: '#ff003c', title: 'Breach Scouting', body: 'Your vault automatically checks passwords against known data breaches every 24 hours. A red badge on the Vault tab means something needs your attention.' },
+          ];
+          const step = steps[onboardStep];
+          const StepIcon = step.icon;
+          const isLast = onboardStep === steps.length - 1;
+          const dismiss = () => { localStorage.setItem('vq_onboarded', 'true'); setShowOnboarding(false); };
+          return (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+              <motion.div
+                key={onboardStep}
+                initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
+                style={{ background: 'rgba(18,18,22,0.99)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', maxWidth: '420px', width: '100%' }}
+                className="p-10 text-center"
+              >
+                <div className="flex justify-center gap-2 mb-8">
+                  {steps.map((_, i) => (
+                    <div key={i} className={`h-1 rounded-full transition-all ${i === onboardStep ? 'w-8 bg-neon-cyan' : 'w-4 bg-white/10'}`} />
+                  ))}
+                </div>
+                <div className="p-5 inline-flex rounded-2xl mb-6" style={{ backgroundColor: `${step.color}15`, color: step.color }}>
+                  <StepIcon size={44} />
+                </div>
+                <h3 className="text-xl font-black uppercase mb-3" style={{ color: step.color }}>{step.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed mb-10">{step.body}</p>
+                <div className="flex gap-3">
+                  {onboardStep > 0 && (
+                    <button onClick={() => setOnboardStep(s => s - 1)} className="flex-1 py-3 rounded-xl bg-white/5 text-gray-400 font-black uppercase text-[10px] hover:bg-white/10 transition-all">Back</button>
+                  )}
+                  <button
+                    onClick={() => isLast ? dismiss() : setOnboardStep(s => s + 1)}
+                    className="flex-1 py-3 rounded-xl bg-neon-cyan text-black font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-all"
+                  >
+                    {isLast ? 'Begin Your Quest' : <><span>Next</span><ArrowRight size={12} /></>}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Toast */}
