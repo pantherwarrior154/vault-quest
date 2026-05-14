@@ -18,7 +18,7 @@ import {
   Skull, Trash2, Key, LogOut, User, Eye, Activity, Users,
   Beaker, ShieldAlert, Zap, Wand2, Star, Ghost, Crown, Radar,
   Pencil, Search, Check, ScrollText, ChevronDown, ChevronUp,
-  ArrowRight
+  ArrowRight, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -72,20 +72,24 @@ const Tendril = ({ d, delay }: { d: string; delay: number }) => (
     transition={{ duration: 0.9, ease: 'easeOut', delay }} />
 );
 
-const RotVines = () => (
+let _rotVinesId = 0;
+const RotVines = () => {
+  const gradId = React.useRef(`rg-${_rotVinesId++}`).current;
+  return (
   <motion.div className="absolute inset-0 pointer-events-none overflow-hidden"
     style={{ borderRadius: 'inherit' }}
     animate={{ opacity: [0.8, 1, 0.8] }}
+    exit={{ opacity: 0, transition: { duration: 2, ease: 'easeOut' } }}
     transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
       <defs>
-        <radialGradient id="rg" cx="50%" cy="50%" r="68%">
+        <radialGradient id={gradId} cx="50%" cy="50%" r="68%">
           <stop offset="22%" stopColor="transparent" />
           <stop offset="72%" stopColor="rgba(5,28,0,0.22)" />
           <stop offset="100%" stopColor="rgba(2,14,0,0.58)" />
         </radialGradient>
       </defs>
-      <rect width="100" height="100" fill="url(#rg)" />
+      <rect width="100" height="100" fill={`url(#${gradId})`} />
 
       {/* ── TOP-LEFT ── */}
       {/* main stems hugging edges */}
@@ -155,7 +159,8 @@ const RotVines = () => (
       <Tendril d="M 95,67 C 99,64 97,60 93,62 C 90,64 91,68 94,66" delay={3.4} />
     </svg>
   </motion.div>
-);
+  );
+};
 
 const PotencyMeter = ({ password }: { password: string }) => {
   const { score, label, color } = getPasswordStrength(password);
@@ -181,7 +186,7 @@ const PotencyMeter = ({ password }: { password: string }) => {
 function App() {
   const [token, setToken] = useState(localStorage.getItem('vq_token') || '');
   const googleButtonRef = useRef<HTMLDivElement>(null);
-  const [googleLoaded, setGoogleLoaded] = useState(false);
+
 
   const [user, setUser] = useState(null);
   const [isInitiated, setIsInitiated] = useState(true);
@@ -207,7 +212,6 @@ function App() {
 
   const [adminStats, setAdminStats] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
-  const [loadingStats, setLoadingStats] = useState(false);
   const [breachStatus, setBreachStatus] = useState({});
   const [scanResult, setScanResult] = useState<{ total: number; compromised: number; safe: number } | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -230,6 +234,8 @@ function App() {
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardStep, setOnboardStep] = useState(0);
+  const [breachAlert, setBreachAlert] = useState<{ serviceName: string; count: number; itemId: number } | null>(null);
+  const [breachDetailsOpen, setBreachDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -322,7 +328,6 @@ function App() {
       if (!googleButtonRef.current || !window.google) return;
       window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleResponse });
       window.google.accounts.id.renderButton(googleButtonRef.current, { theme: "filled_blue", size: "large", width: "100%" });
-      setGoogleLoaded(true);
     };
     if (window.google) {
       initGoogle();
@@ -348,18 +353,17 @@ function App() {
   };
 
   const fetchAdminStats = async () => {
-    setLoadingStats(true);
     try {
       const res = await axios.get(`${API_BASE}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } });
       setAdminStats(res.data);
-    } finally { setLoadingStats(false); }
+    } catch {}
   };
 
   const fetchAllUsers = async () => {
     try {
       const res = await axios.get(`${API_BASE}/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
       setAllUsers(res.data);
-    } catch {}
+    } catch { showToast('Failed to load heroes.', 'error'); }
   };
 
   const banishUser = async (userId: number, userName: string) => {
@@ -400,7 +404,13 @@ function App() {
     setBreachStatus(prev => ({ ...prev, [id]: { loading: true } }));
     try {
       const res = await axios.get(`${API_BASE}/vault/check-breach/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      setBreachStatus(prev => ({ ...prev, [id]: { loading: false, count: res.data.breach_count } }));
+      const count = res.data.breach_count;
+      setBreachStatus(prev => ({ ...prev, [id]: { loading: false, count } }));
+      if (count > 0) {
+        const item = vaultItems.find((i: any) => i.id === id);
+        setBreachDetailsOpen(false);
+        setBreachAlert({ serviceName: (item as any)?.service_name || 'Unknown', count, itemId: id });
+      }
     } catch {
       setBreachStatus(prev => ({ ...prev, [id]: { loading: false, error: true } }));
     }
@@ -412,7 +422,7 @@ function App() {
     try {
       await axios.post(`${API_BASE}/vault/add`, {
         service_name: serviceName, password: brewedPassword,
-        armor_class: complexity === 3 ? "Legendary" : complexity === 2 ? "Master" : "Common"
+        armor_class: complexity === 3 ? "Legendary" : complexity === 2 ? "Rare" : "Common"
       }, { headers: { Authorization: `Bearer ${token}` } });
       setServiceName(''); setBrewedPassword('');
       showToast('Secret vaulted!');
@@ -459,9 +469,12 @@ function App() {
         armor_class: (entry as any)?.armor_class || 'Common',
         notes: editNotes || null
       }, { headers: { Authorization: `Bearer ${token}` } });
+      const passwordChanged = !!editPassword;
+      const savedId = editingId;
       showToast('Secret reforged!');
       setEditingId(null); setEditPassword(''); setEditNotes('');
-      fetchVault();
+      await fetchVault();
+      if (passwordChanged) scoutBreach(savedId);
     } catch { showToast('Failed to reforge secret.', 'error'); }
     finally { setEditSaving(false); }
   };
@@ -744,7 +757,9 @@ function App() {
                       : { borderColor: 'rgba(255,255,255,0.05)' }}
                   >
                     {/* Rotting vine effect */}
-                    {getDaysOld(item.created_at) >= 90 && <RotVines />}
+                    <AnimatePresence>
+                      {getDaysOld(item.created_at) >= 90 && <RotVines key="vines" />}
+                    </AnimatePresence>
                     {editingId === item.id ? (
                       /* Edit Form */
                       <div className="space-y-3">
@@ -818,6 +833,13 @@ function App() {
 
                         <h4 className="font-black uppercase mb-1">{item.service_name}</h4>
 
+                        {getDaysOld(item.created_at) >= 90 && (
+                          <div className="relative z-10 mb-2 inline-flex items-center gap-1 px-2 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-400 text-[8px] font-black uppercase tracking-wide animate-pulse">
+                            <AlertTriangle size={9} />
+                            {getDaysOld(item.created_at)}d old — Rotate this!
+                          </div>
+                        )}
+
                         {/* Breach Status */}
                         <div className="mb-3 min-h-[20px]">
                           {breachStatus[item.id]?.count > 0 && (
@@ -855,7 +877,7 @@ function App() {
                             <button
                               onClick={() => setExpandedNotes(prev => {
                                 const next = new Set(prev);
-                                next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                                if (next.has(item.id)) { next.delete(item.id); } else { next.add(item.id); }
                                 return next;
                               })}
                               className="w-full flex items-center gap-2 px-4 py-3 text-[10px] font-black uppercase text-amber-400 hover:text-amber-200 transition-all"
@@ -923,6 +945,213 @@ function App() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Breach Alert Modal */}
+      <AnimatePresence>
+        {breachAlert && (() => {
+          const alertItem = vaultItems.find((i: any) => i.id === breachAlert.itemId) as any;
+          const daysOld = alertItem ? getDaysOld(alertItem.created_at) : null;
+          const severity =
+            breachAlert.count >= 1_000_000 ? { label: 'Catastrophic', color: '#ff003c' } :
+            breachAlert.count >= 100_000  ? { label: 'Critical',      color: '#ff2d55' } :
+            breachAlert.count >= 10_000   ? { label: 'Severe',        color: '#ff6b35' } :
+            breachAlert.count >= 1_000    ? { label: 'High',          color: '#ffb800' } :
+            breachAlert.count >= 100      ? { label: 'Moderate',      color: '#ffd700' } :
+                                            { label: 'Low',            color: '#a8e063' };
+          return (
+            <div style={{ position: 'fixed', bottom: '32px', right: '32px', zIndex: 10001, pointerEvents: 'none' }}>
+              <motion.div
+                initial={{ scale: 0.85, y: 30, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.85, y: 30, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                style={{ background: 'rgba(10,3,3,0.98)', border: '1px solid rgba(255,0,60,0.4)', borderRadius: '14px', width: '320px', position: 'relative', overflow: 'hidden', boxShadow: '0 0 40px rgba(255,0,60,0.2), 0 8px 32px rgba(0,0,0,0.6)', pointerEvents: 'auto' }}
+                className="p-6 text-center"
+              >
+                {/* Pulsing red vignette */}
+                <motion.div
+                  className="absolute inset-0 pointer-events-none"
+                  animate={{ opacity: [0.05, 0.14, 0.05] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(255,0,60,0.5) 0%, transparent 70%)' }}
+                />
+                {/* Top sweep bar */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden">
+                  <motion.div
+                    animate={{ x: ['-100%', '200%'] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1 }}
+                    style={{ width: '40%', height: '100%', background: 'linear-gradient(90deg, transparent, rgba(255,0,60,0.9), transparent)' }}
+                  />
+                </div>
+
+                <div className="relative">
+                  {/* Skull with pulse ring */}
+                  <div className="relative inline-flex mb-3 items-center justify-center">
+                    <motion.div
+                      className="absolute rounded-full"
+                      animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0, 0.3] }}
+                      transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
+                      style={{ width: 64, height: 64, background: 'rgba(255,0,60,0.25)' }}
+                    />
+                    <motion.div
+                      animate={{ rotate: [0, -4, 4, -4, 0] }}
+                      transition={{ duration: 0.35, repeat: Infinity, repeatDelay: 2.5 }}
+                      className="p-3 rounded-xl"
+                      style={{ background: 'rgba(255,0,60,0.12)', color: '#ff003c' }}
+                    >
+                      <Skull size={32} />
+                    </motion.div>
+                  </div>
+
+                  <p className="text-[7px] font-black uppercase tracking-[0.5em] mb-1" style={{ color: 'rgba(255,0,60,0.55)' }}>
+                    ⚠ Breach Detected ⚠
+                  </p>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-white leading-none mb-0.5">Your Secret</h2>
+                  <h2 className="text-xl font-black uppercase tracking-tight leading-none mb-4" style={{ color: '#ff003c' }}>Has Been Seen</h2>
+
+                  <div className="inline-block px-3 py-1 rounded-lg border mb-4" style={{ borderColor: 'rgba(255,0,60,0.35)', background: 'rgba(255,0,60,0.1)' }}>
+                    <span className="font-black uppercase text-xs tracking-widest" style={{ color: '#ff003c' }}>{breachAlert.serviceName}</span>
+                  </div>
+
+                  <div className="rounded-xl border p-3 mb-4" style={{ background: 'rgba(255,0,60,0.08)', borderColor: 'rgba(255,0,60,0.2)' }}>
+                    <p className="text-[7px] font-black uppercase tracking-widest mb-1" style={{ color: 'rgba(255,0,60,0.5)' }}>Dark Web Exposures</p>
+                    <p className="text-3xl font-black tabular-nums" style={{ color: '#ff003c', textShadow: '0 0 20px rgba(255,0,60,0.5)' }}>
+                      {breachAlert.count.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <p className="text-[10px] text-gray-500 mb-4 leading-relaxed">
+                    Enemies may already hold this secret — forge a new one.
+                  </p>
+
+                  {/* More Info toggle */}
+                  <button
+                    onClick={() => setBreachDetailsOpen(o => !o)}
+                    className="w-full flex items-center justify-center gap-1 py-2 mb-4 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                    style={{ color: 'rgba(255,0,60,0.6)', background: 'rgba(255,0,60,0.06)', border: '1px solid rgba(255,0,60,0.15)' }}
+                  >
+                    <ShieldAlert size={11} />
+                    {breachDetailsOpen ? 'Hide Details' : 'More Information'}
+                    <motion.span animate={{ rotate: breachDetailsOpen ? 180 : 0 }} transition={{ duration: 0.2 }} className="inline-block">
+                      <ChevronDown size={11} />
+                    </motion.span>
+                  </button>
+
+                  {/* Expanded details */}
+                  <AnimatePresence>
+                    {breachDetailsOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <div className="space-y-3 mb-4 text-left">
+                          {/* Severity */}
+                          <div className="rounded-lg p-3 border" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                            <p className="text-[7px] font-black uppercase tracking-widest text-gray-600 mb-1">Threat Level</p>
+                            <div className="flex items-center gap-2">
+                              <motion.div
+                                animate={{ opacity: [1, 0.4, 1] }}
+                                transition={{ duration: 1.2, repeat: Infinity }}
+                                className="w-2 h-2 rounded-full"
+                                style={{ background: severity.color }}
+                              />
+                              <span className="text-sm font-black uppercase" style={{ color: severity.color }}>{severity.label}</span>
+                            </div>
+                            <p className="text-[9px] text-gray-500 mt-2 leading-relaxed">
+                              {breachAlert.count >= 1_000_000
+                                ? `This password has been leaked ${breachAlert.count.toLocaleString()} times — it lives in every hacker's wordlist. Automated attack tools will crack an account using this password in seconds. Treat it as already stolen.`
+                                : breachAlert.count >= 100_000
+                                ? `Seen ${breachAlert.count.toLocaleString()} times across major breach dumps. It appears in widely distributed databases that attackers actively download and use in credential-stuffing attacks against popular services.`
+                                : breachAlert.count >= 10_000
+                                ? `Found ${breachAlert.count.toLocaleString()} times in known breach data. This password has spread across enough dumps that any serious attacker's list will include it. Don't rely on it for any account.`
+                                : breachAlert.count >= 1_000
+                                ? `Exposed ${breachAlert.count.toLocaleString()} times. It has appeared in multiple breach datasets — targeted attacks and credential-stuffing tools may already carry it.`
+                                : breachAlert.count >= 100
+                                ? `Spotted ${breachAlert.count.toLocaleString()} times in breach records. It has leaked at least once and is circulating in niche breach collections. Still a real risk.`
+                                : `Appeared ${breachAlert.count.toLocaleString()} time${breachAlert.count > 1 ? 's' : ''} in known breach data. Uncommon, but confirmed compromised — it must still be rotated immediately.`}
+                            </p>
+                          </div>
+
+                          {/* Stats row */}
+                          <div className="grid grid-cols-2 gap-2">
+                            {daysOld !== null && (
+                              <div className="rounded-lg p-2 border text-center" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                                <p className="text-[7px] font-black uppercase tracking-widest text-gray-600 mb-0.5">Password Age</p>
+                                <p className="text-base font-black text-white">{daysOld}d</p>
+                              </div>
+                            )}
+                            {alertItem?.armor_class && (
+                              <div className="rounded-lg p-2 border text-center" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                                <p className="text-[7px] font-black uppercase tracking-widest text-gray-600 mb-0.5">Armor Class</p>
+                                <p className="text-base font-black text-white">{alertItem.armor_class}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action checklist */}
+                          <div className="rounded-lg p-3 border" style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                            <p className="text-[7px] font-black uppercase tracking-widest text-gray-600 mb-2">Recommended Actions</p>
+                            {[
+                              'Rotate this password immediately',
+                              'Use a unique password for this service',
+                              'Enable 2FA if available',
+                              'Never reuse this password elsewhere',
+                            ].map(action => (
+                              <div key={action} className="flex items-start gap-2 mb-1 last:mb-0">
+                                <span style={{ color: '#ff003c', flexShrink: 0, marginTop: 1 }}>›</span>
+                                <span className="text-[9px] text-gray-400 leading-tight">{action}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* How it works */}
+                          <div className="rounded-lg p-3 border" style={{ background: 'rgba(0,242,255,0.03)', borderColor: 'rgba(0,242,255,0.1)' }}>
+                            <p className="text-[7px] font-black uppercase tracking-widest mb-1" style={{ color: 'rgba(0,242,255,0.5)' }}>How We Check</p>
+                            <p className="text-[9px] leading-relaxed" style={{ color: 'rgba(0,242,255,0.45)' }}>
+                              Only the first 5 characters of your password's SHA-1 hash are sent to HaveIBeenPwned. Your actual password never leaves this device.
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const item = vaultItems.find((i: any) => i.id === breachAlert.itemId);
+                        setBreachAlert(null);
+                        if (item) {
+                          setActiveTab('vault');
+                          setEditingId(breachAlert.itemId);
+                          setEditService((item as any).service_name);
+                          setEditPassword('');
+                          setEditNotes((item as any).notes || '');
+                        }
+                      }}
+                      className="flex-1 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all flex items-center justify-center gap-1"
+                      style={{ background: '#ff003c', color: '#fff' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,0,60,0.75)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#ff003c')}
+                    >
+                      <RefreshCw size={12} /> Rotate Now
+                    </button>
+                    <button
+                      onClick={() => setBreachAlert(null)}
+                      className="flex-1 py-3 rounded-xl bg-white/5 text-gray-400 font-black uppercase text-[9px] tracking-widest hover:bg-white/10 transition-all"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
 
       {/* Scan Result Modal */}
       <AnimatePresence>

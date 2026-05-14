@@ -7,17 +7,21 @@
 ## ⚔️ Features
 
 ### 🧙 The Alchemist's Lab (Password Generator)
-- Brew passwords with configurable length and complexity
+- **Potion mode** — Brew passwords with configurable length and complexity
 - Three tiers: Common (letters + digits), Rare (+ symbols), Legendary (full punctuation)
+- **Rune Words mode** — Forge memorable passphrases: 3–6 random words with a choice of separator (`-`, `.`, `_`, space)
+- Real-time **Potency Meter** shows password strength as you type or brew
 - One-click copy to clipboard
 
 ### 🔐 The Secret Vault
 - AES-256 encrypted storage — your keys never leave your machine unencrypted
-- Armor class tags: Common, Uncommon, Rare, Epic, Legendary
+- Armor class tags: Common, Uncommon, Rare, Epic, Legendary (auto-assigned from strength score when adding manually)
+- Optional **notes** field per entry — expandable inline
 - Show/hide password toggle per entry
-- Inline edit — change service name, password, or armor class without re-adding
+- Inline edit — change service name, password, notes, or armor class without re-adding
 - Search/filter vault by service name in real time
 - One-click copy with visual confirmation
+- **RotVines** — entries 90+ days old sprout an animated rotting-vine overlay with a "Rotate this!" warning
 
 ### 🕵️ Breach Monitoring (Have I Been Pwned)
 - Automatic background scan runs every 24 hours
@@ -25,15 +29,18 @@
 - Breach count displayed on each vault card
 - Admin dashboard: trigger a full scan, view total vs. compromised entries
 
-### 🔑 Authentication
+### 🔑 Authentication & Profile
 - Username + password signup/login
 - Google Sign-In (OAuth2)
 - JWT sessions (24-hour tokens)
+- **Profile setup** — choose a display name and avatar on first login
+- **Onboarding tour** — guided walkthrough shown to new users after profile creation
 
 ### 🛠️ Admin Panel
 - User roster with roles
 - Kingdom stats: total users, total entries
 - Manual breach scan trigger with results summary
+- **Banish users** — remove any account from the kingdom
 
 ---
 
